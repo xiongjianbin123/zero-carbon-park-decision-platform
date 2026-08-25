@@ -1218,8 +1218,10 @@ function createWorkerHandler({ catalog: policyCatalog = catalog_default, index: 
 	};
 }
 var handler = createWorkerHandler();
-var worker_default = { fetch(request, env) {
+//#endregion
+//#region \0virtual:cloudflare/worker-entry
+var worker_entry_default = { fetch(request, env) {
 	return handler(request, env);
 } };
 //#endregion
-export { createWorkerHandler, worker_default as default };
+export { createWorkerHandler, worker_entry_default as default };

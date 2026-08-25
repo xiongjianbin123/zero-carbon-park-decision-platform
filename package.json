@@ -7,7 +7,7 @@
     "dev": "vite",
     "api": "node server/index.mjs",
     "api:dev": "PORT=4175 node server/index.mjs",
-    "build": "vue-tsc --noEmit && vite build && vite build -c vite.worker.config.ts",
+    "build": "node scripts/clean-dist.mjs && vue-tsc --noEmit && vite build && node scripts/sanitize-sites-build.mjs",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
     "test": "vitest",
@@ -23,15 +23,17 @@
     "vue-router": "^4.4.5"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.37.1",
+    "@openai/sites-vite-plugin": "^0.2.0",
     "@playwright/test": "^1.55.0",
     "@types/node": "^24.3.0",
-    "@openai/sites-vite-plugin": "^0.2.0",
     "@vitejs/plugin-vue": "^6.0.8",
     "@vue/test-utils": "^2.4.6",
     "jsdom": "^25.0.1",
     "typescript": "~5.9.2",
     "vite": "^8.0.0",
     "vitest": "^4.1.11",
-    "vue-tsc": "^2.1.6"
+    "vue-tsc": "^2.1.6",
+    "wrangler": "^4.92.0"
   }
 }
