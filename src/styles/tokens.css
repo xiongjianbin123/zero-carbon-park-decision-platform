@@ -1,0 +1,17 @@
+:root {
+  --night: #061229;
+  --deep-sea: #0a1a3a;
+  --panel-blue: #0e2148;
+  --energy-cyan: #00e5ff;
+  --electric-blue: #4eb8ff;
+  --success-green: #7bd877;
+  --opportunity-orange: #f5a623;
+  --risk-pink: #ff6b9d;
+  --info-text: #b8d4f0;
+  --heading-white: #f4fbff;
+  --muted-text: #7398b6;
+  --panel-border: rgba(0, 229, 255, 0.2);
+  --font-display: "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-data: "DIN Alternate", "Roboto Mono", monospace;
+  --header-height: 124px;
+}

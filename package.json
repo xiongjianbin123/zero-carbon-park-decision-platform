@@ -1,0 +1,36 @@
+{
+  "name": "zero-carbon-park-platform",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "api": "node server/index.mjs",
+    "api:dev": "PORT=4175 node server/index.mjs",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit",
+    "test": "vitest",
+    "test:e2e": "playwright test",
+    "test:server": "node --test tests/server/*.test.mjs",
+    "policies:import": "node scripts/import-policy-documents.mjs",
+    "policies:index": "node scripts/build-policy-index.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.120.0",
+    "echarts": "^5.5.1",
+    "vue": "^3.5.10",
+    "vue-router": "^4.4.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@types/node": "^24.3.0",
+    "@vitejs/plugin-vue": "^5.1.4",
+    "@vue/test-utils": "^2.4.6",
+    "jsdom": "^25.0.1",
+    "typescript": "~5.9.2",
+    "vite": "^5.4.8",
+    "vitest": "^2.1.1",
+    "vue-tsc": "^2.1.6"
+  }
+}

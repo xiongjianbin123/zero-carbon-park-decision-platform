@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>政策知识与申报中枢 · 视觉预览</title>
+  <style>
+    :root {
+      --night: #041025;
+      --deep: #071a39;
+      --panel: rgba(11, 38, 77, .82);
+      --cyan: #00e5ff;
+      --blue: #4eb8ff;
+      --green: #7bd877;
+      --orange: #f5a623;
+      --pink: #ff6b9d;
+      --white: #f4fbff;
+      --text: #b8d4f0;
+      --muted: #7398b6;
+      --line: rgba(0, 229, 255, .2);
+      --display: "PingFang SC", "Microsoft YaHei", sans-serif;
+      --data: "DIN Alternate", "SFMono-Regular", monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { width: 100%; min-height: 100%; margin: 0; }
+    body {
+      min-width: 1180px;
+      color: var(--text);
+      font: 14px var(--display);
+      background:
+        radial-gradient(circle at 49% -18%, rgba(0, 173, 255, .23), transparent 43%),
+        linear-gradient(180deg, #041025 0, #061229 48%, #031022 100%);
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 72px 0 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(0, 229, 255, .026) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 229, 255, .026) 1px, transparent 1px);
+      background-size: 44px 44px;
+      mask-image: linear-gradient(to bottom, black, transparent 88%);
+    }
+
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    .header {
+      height: 72px;
+      display: grid;
+      grid-template-columns: 330px 1fr 335px;
+      align-items: stretch;
+      padding: 0 14px;
+      position: relative;
+      z-index: 3;
+      border-bottom: 1px solid rgba(0, 229, 255, .42);
+      background: linear-gradient(90deg, rgba(5, 19, 42, .98), rgba(10, 42, 82, .98), rgba(5, 19, 42, .98));
+      box-shadow: 0 8px 26px rgba(0, 0, 0, .28);
+    }
+    .header::after {
+      content: "";
+      position: absolute;
+      left: 10%; right: 10%; bottom: -1px; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      box-shadow: 0 0 12px var(--cyan);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark {
+      width: 38px; height: 38px; display: grid; place-items: center;
+      color: white; font-weight: 900; font-size: 17px;
+      transform: rotate(45deg);
+      border: 1px solid var(--cyan);
+      background: radial-gradient(circle, #097a9b, #092846 65%);
+      box-shadow: 0 0 18px rgba(0, 229, 255, .28);
+    }
+    .brand-mark span { transform: rotate(-45deg); }
+    .brand strong { display: block; color: var(--white); font-size: 16px; letter-spacing: .5px; text-shadow: 0 0 12px rgba(0,229,255,.38); }
+    .brand small, .park small { display: block; margin-top: 4px; color: #6e9bb7; font: 9px var(--data); letter-spacing: 1.15px; }
+    nav { display: flex; justify-content: center; align-items: stretch; }
+    nav span { display: flex; align-items: center; gap: 6px; padding: 0 11px; color: #82a9c4; font-weight: 650; white-space: nowrap; }
+    nav .active { position: relative; color: var(--white); background: linear-gradient(180deg, rgba(0,229,255,.1), transparent); }
+    nav .active::after { content: ""; position: absolute; left: 12%; right: 12%; bottom: 0; height: 2px; background: var(--cyan); box-shadow: 0 0 9px var(--cyan); }
+    nav i { color: var(--cyan); font-style: normal; }
+    .park { display: flex; justify-content: flex-end; align-items: center; gap: 12px; text-align: right; }
+    .park strong { color: var(--white); font-size: 13px; }
+
+    main { position: relative; z-index: 1; padding: 18px 22px 24px; }
+    .heading { min-height: 70px; display: flex; align-items: center; gap: 15px; border-bottom: 1px dashed rgba(0,229,255,.18); padding-bottom: 12px; }
+    .index { width: 46px; height: 46px; display: grid; place-items: center; color: var(--cyan); font: 15px var(--data); border: 1px solid rgba(0,229,255,.55); transform: rotate(45deg); box-shadow: inset 0 0 18px rgba(0,229,255,.08), 0 0 15px rgba(0,229,255,.09); }
+    .index span { transform: rotate(-45deg); }
+    .eyebrow { margin: 0 0 2px; color: var(--cyan); font: 10px var(--data); letter-spacing: 2px; }
+    h1 { margin: 0; color: var(--white); font-size: 28px; letter-spacing: 1px; text-shadow: 0 0 14px rgba(0,229,255,.28); }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 9px var(--green); }
+
+    .tabs { height: 44px; display: flex; gap: 8px; align-items: end; }
+    .tabs button { height: 35px; padding: 0 18px; color: #82a8bf; border: 1px solid rgba(0,229,255,.16); background: rgba(5,22,47,.64); }
+    .tabs button.active { color: white; border-color: var(--cyan); background: rgba(0,229,255,.1); box-shadow: inset 0 -2px var(--cyan), 0 0 12px rgba(0,229,255,.08); }
+
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; }
+    .metric { height: 72px; position: relative; overflow: hidden; padding: 11px 14px; border: 1px solid var(--line); background: linear-gradient(150deg, rgba(20,51,96,.7), rgba(7,25,52,.86)); }
+    .metric::before { content: ""; position: absolute; inset: 0; border-left: 2px solid currentColor; opacity: .75; }
+    .metric span, .metric strong, .metric small { display: block; }
+    .metric span { color: #8fb2c8; font-size: 12px; }
+    .metric strong { display: inline; color: currentColor; font: 800 25px var(--data); text-shadow: 0 0 11px currentColor; }
+    .metric small { display: inline; margin-left: 5px; color: #648aa2; }
+    .cyan { color: var(--cyan); } .green { color: var(--green); } .orange { color: var(--orange); } .pink { color: var(--pink); } .blue { color: var(--blue); }
+
+    .workspace { height: 620px; display: grid; grid-template-columns: 318px minmax(430px, 1fr) 374px; gap: 12px; }
+    .panel { min-width: 0; position: relative; overflow: hidden; border: 1px solid var(--line); background: linear-gradient(180deg, rgba(16,45,88,.64), rgba(7,24,52,.86)); box-shadow: 0 15px 30px rgba(0,0,0,.18); }
+    .panel::before, .panel::after { content: ""; position: absolute; width: 16px; height: 16px; pointer-events: none; }
+    .panel::before { left: -1px; top: -1px; border-left: 2px solid var(--cyan); border-top: 2px solid var(--cyan); }
+    .panel::after { right: -1px; bottom: -1px; border-right: 2px solid var(--cyan); border-bottom: 2px solid var(--cyan); }
+    .panel-head { height: 54px; padding: 11px 14px; border-bottom: 1px solid rgba(0,229,255,.12); }
+    .panel-head small { display: block; color: #628daa; font: 9px var(--data); letter-spacing: 1.45px; }
+    .panel-head strong { display: block; margin-top: 4px; color: var(--white); font-size: 16px; }
+    .panel-head strong::before { content: "◆"; margin-right: 8px; color: var(--cyan); font-size: 9px; text-shadow: 0 0 8px var(--cyan); }
+
+    .filters { padding: 12px; border-bottom: 1px solid rgba(0,229,255,.1); }
+    .search { height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid rgba(0,229,255,.25); background: rgba(3,18,41,.56); }
+    .search input { width: 100%; color: white; border: 0; outline: 0; background: transparent; }
+    .search input::placeholder { color: #5f839a; }
+    .filter-row { display: flex; gap: 5px; margin-top: 8px; }
+    .chip { padding: 5px 7px; color: #789db4; border: 1px solid rgba(120,157,180,.18); background: transparent; font-size: 11px; }
+    .chip.active { color: var(--cyan); border-color: rgba(0,229,255,.45); background: rgba(0,229,255,.07); }
+    .docs { height: 470px; padding: 9px; overflow: hidden; }
+    .doc { padding: 11px 10px; margin-bottom: 7px; border: 1px solid rgba(0,229,255,.14); background: rgba(4,23,48,.58); }
+    .doc.active { border-color: var(--cyan); background: linear-gradient(100deg, rgba(0,229,255,.12), rgba(0,229,255,.035)); box-shadow: inset 2px 0 var(--cyan); }
+    .doc-top { display: flex; align-items: center; gap: 6px; color: #6b91a9; font: 10px var(--data); }
+    .level { color: var(--blue); } .valid { color: var(--green); }
+    .doc h3 { margin: 7px 0 4px; color: #d8ebf4; font-size: 13px; line-height: 1.42; }
+    .doc.active h3 { color: white; }
+    .doc p { margin: 0; color: #688da4; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .reader { display: grid; grid-template-rows: auto auto 1fr auto; }
+    .doc-title { padding: 14px 16px 12px; border-bottom: 1px solid rgba(0,229,255,.1); }
+    .doc-title .meta { display: flex; gap: 7px; color: #6f94ab; font-size: 11px; }
+    .doc-title h2 { margin: 8px 0 6px; color: white; font-size: 20px; line-height: 1.35; }
+    .doc-title p { margin: 0; color: #7fa3ba; font-size: 12px; }
+    .source-bar { display: flex; align-items: center; gap: 8px; padding: 9px 16px; color: #80a6bc; border-bottom: 1px solid rgba(0,229,255,.1); background: rgba(2,15,34,.34); font-size: 11px; }
+    .source-bar button { margin-left: auto; padding: 5px 9px; color: var(--cyan); border: 1px solid rgba(0,229,255,.32); background: rgba(0,229,255,.06); }
+    .paper { position: relative; padding: 12px 17px 8px 51px; overflow: hidden; }
+    .paper::before { content: ""; position: absolute; left: 34px; top: 0; bottom: 0; width: 1px; background: rgba(0,229,255,.18); }
+    .clause { position: relative; margin: 0 0 9px; padding: 9px 11px; color: #9fc0d1; line-height: 1.58; border: 1px solid rgba(91,143,174,.14); background: rgba(3,18,41,.34); font-size: 12px; }
+    .clause::before { content: attr(data-page); position: absolute; left: -43px; top: 10px; width: 27px; color: #5b8298; font: 9px var(--data); text-align: right; }
+    .clause strong { color: var(--orange); font-weight: 700; }
+    .clause.selected { border-color: rgba(245,166,35,.55); background: linear-gradient(90deg, rgba(245,166,35,.1), rgba(3,18,41,.28)); }
+    .clause.selected::after { content: "证据 01"; position: absolute; right: 8px; top: 7px; color: var(--orange); font: 9px var(--data); letter-spacing: .6px; }
+    .reader-actions { display: flex; gap: 7px; padding: 10px 15px 13px; border-top: 1px solid rgba(0,229,255,.1); }
+    .reader-actions button { padding: 7px 10px; color: #9fc3d4; border: 1px solid rgba(0,229,255,.22); background: rgba(0,229,255,.05); }
+    .reader-actions .primary { color: #052435; border-color: var(--cyan); background: var(--cyan); font-weight: 750; }
+
+    .ai { display: grid; grid-template-rows: auto auto 1fr auto; }
+    .model-strip { display: flex; align-items: center; gap: 7px; padding: 9px 13px; color: #7499b0; border-bottom: 1px solid rgba(0,229,255,.1); font: 10px var(--data); }
+    .model-strip b { color: var(--green); }
+    .ask { padding: 12px 13px 10px; }
+    .ask-box { min-height: 74px; padding: 10px; color: white; line-height: 1.5; border: 1px solid rgba(0,229,255,.32); background: rgba(2,16,37,.7); }
+    .ask-actions { display: flex; align-items: center; margin-top: 8px; }
+    .ask-actions span { color: #638aa1; font-size: 10px; }
+    .ask-actions button { margin-left: auto; padding: 7px 12px; color: #062537; border: 0; background: var(--cyan); font-weight: 800; box-shadow: 0 0 15px rgba(0,229,255,.2); }
+    .answer { position: relative; margin: 0 13px 10px; padding: 13px 13px 12px 28px; overflow: hidden; border: 1px solid rgba(123,216,119,.25); background: linear-gradient(145deg, rgba(123,216,119,.08), rgba(4,24,50,.56)); }
+    .answer::before { content: ""; position: absolute; left: 11px; top: 17px; bottom: 17px; width: 2px; background: linear-gradient(var(--orange), var(--green), var(--cyan)); box-shadow: 0 0 11px var(--cyan); }
+    .answer .label { color: var(--green); font: 10px var(--data); letter-spacing: 1px; }
+    .answer h3 { margin: 7px 0 9px; color: white; font-size: 17px; }
+    .answer p { margin: 0 0 9px; color: #a9c8d7; line-height: 1.58; font-size: 12px; }
+    .evidence { display: grid; gap: 6px; }
+    .evidence div { padding: 7px 8px; color: #86aabd; border-left: 2px solid currentColor; background: rgba(0,0,0,.12); font-size: 11px; }
+    .evidence b { margin-right: 5px; color: currentColor; }
+    .answer-note { margin-top: 8px; color: #648aa0; font-size: 10px; }
+    .link-actions { padding: 10px 13px 13px; border-top: 1px solid rgba(0,229,255,.1); }
+    .link-actions small { display: block; margin-bottom: 7px; color: #658ba2; font: 9px var(--data); letter-spacing: 1px; }
+    .link-actions div { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .link-actions button { min-height: 38px; padding: 5px; color: #a8c9d7; border: 1px solid rgba(0,229,255,.2); background: rgba(0,229,255,.05); font-size: 10px; }
+
+    .benchmark-workspace { height: 620px; display: grid; grid-template-columns: 270px minmax(500px, 1fr) 360px; gap: 12px; }
+    .stage-list { padding: 13px; }
+    .stage-item { min-height: 75px; position: relative; display: grid; grid-template-columns: 30px 1fr; gap: 8px; padding-bottom: 10px; }
+    .stage-item:not(:last-child)::after { content: ""; position: absolute; left: 14px; top: 31px; bottom: 0; width: 1px; background: rgba(0,229,255,.18); }
+    .stage-num { width: 28px; height: 28px; display: grid; place-items: center; z-index: 1; color: #638ca5; border: 1px solid rgba(0,229,255,.25); background: #071b38; font: 10px var(--data); }
+    .stage-item.done .stage-num { color: #062637; border-color: var(--green); background: var(--green); }
+    .stage-item.active .stage-num { color: #062637; border-color: var(--orange); background: var(--orange); box-shadow: 0 0 13px rgba(245,166,35,.25); }
+    .stage-copy strong { display: block; margin: 2px 0 5px; color: #d7e9f2; font-size: 13px; }
+    .stage-copy small { color: #668da5; font-size: 10px; }
+    .stage-copy b { float: right; color: var(--green); font-size: 10px; }
+    .stage-item.active .stage-copy b { color: var(--orange); }
+
+    .indicator-list { padding: 13px 15px 14px; }
+    .indicator { margin-bottom: 11px; padding: 11px 12px; border: 1px solid rgba(0,229,255,.13); background: rgba(3,18,41,.35); }
+    .indicator-head { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: baseline; }
+    .indicator-head strong { color: #d7e9f2; font-size: 13px; }
+    .indicator-head span { color: #7199b0; font-size: 10px; }
+    .indicator-head b { min-width: 66px; text-align: right; font: 800 18px var(--data); }
+    .scale { height: 8px; position: relative; margin: 10px 0 7px; background: rgba(76,121,148,.18); }
+    .scale::after { content: ""; position: absolute; top: -4px; bottom: -4px; left: var(--threshold); width: 1px; background: var(--orange); box-shadow: 0 0 8px var(--orange); }
+    .scale-fill { height: 100%; width: var(--value); background: currentColor; box-shadow: 0 0 10px currentColor; }
+    .scale-labels { display: flex; justify-content: space-between; color: #5f8298; font: 9px var(--data); }
+    .pending-scale { height: 36px; display: grid; place-items: center; margin-top: 9px; color: #789eb3; border: 1px dashed rgba(245,166,35,.32); background: rgba(245,166,35,.04); font-size: 11px; }
+    .benchmark-note { margin: 6px 0 0; color: #668ca3; font-size: 10px; }
+
+    .gap-list { padding: 12px; display: grid; gap: 8px; }
+    .gap-card { padding: 11px; border: 1px solid rgba(245,166,35,.23); background: linear-gradient(100deg, rgba(245,166,35,.07), rgba(3,18,41,.3)); }
+    .gap-card .gap-top { display: flex; align-items: center; justify-content: space-between; color: var(--orange); font: 10px var(--data); }
+    .gap-card h3 { margin: 7px 0 5px; color: white; font-size: 13px; }
+    .gap-card p { margin: 0; color: #789eb4; font-size: 10px; line-height: 1.5; }
+    .gap-card .owner { display: flex; justify-content: space-between; margin-top: 8px; padding-top: 7px; color: #7399ae; border-top: 1px solid rgba(0,229,255,.08); font-size: 10px; }
+    .gap-card .owner b { color: #a6c5d3; }
+    .gap-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; padding: 11px 12px; border-top: 1px solid rgba(0,229,255,.1); }
+    .gap-actions button { min-height: 38px; color: #a9cad8; border: 1px solid rgba(0,229,255,.22); background: rgba(0,229,255,.05); }
+    .gap-actions .primary { color: #052435; border-color: var(--cyan); background: var(--cyan); font-weight: 800; }
+
+    .energy-workspace { height: 620px; display: grid; grid-template-columns: 270px minmax(560px, 1fr) 350px; gap: 12px; }
+    .scene-list { padding: 12px; display: grid; gap: 8px; }
+    .scene-card { min-height: 65px; display: grid; grid-template-columns: 37px 1fr; gap: 9px; align-items: center; padding: 9px; border: 1px solid rgba(0,229,255,.14); background: rgba(3,18,41,.34); }
+    .scene-card.active { border-color: var(--cyan); background: linear-gradient(90deg, rgba(0,229,255,.1), rgba(3,18,41,.3)); }
+    .scene-icon { width: 35px; height: 35px; display: grid; place-items: center; color: var(--cyan); border: 1px solid currentColor; background: rgba(0,229,255,.05); font-weight: 800; }
+    .scene-card strong { display: block; color: #d7eaf3; font-size: 12px; }
+    .scene-card small { display: block; margin-top: 5px; color: #658da5; font-size: 10px; }
+
+    .topology { height: 566px; position: relative; padding: 14px; overflow: hidden; }
+    .topology::before { content: ""; position: absolute; left: 50%; top: 62px; bottom: 124px; width: 1px; background: linear-gradient(transparent, rgba(0,229,255,.35), transparent); }
+    .topology-zone { position: absolute; color: #638ba4; font: 9px var(--data); letter-spacing: 1px; }
+    .zone-source { left: 16px; top: 14px; } .zone-hub { left: 16px; top: 210px; } .zone-market { left: 16px; bottom: 104px; }
+    .energy-node { position: absolute; min-width: 128px; padding: 10px 12px; text-align: center; border: 1px solid currentColor; background: rgba(5,25,52,.92); box-shadow: 0 0 16px color-mix(in srgb, currentColor 13%, transparent); }
+    .energy-node strong { display: block; color: white; font-size: 12px; }
+    .energy-node span { display: block; margin-top: 5px; color: currentColor; font: 700 14px var(--data); }
+    .node-wind { left: 7%; top: 50px; } .node-pv { left: 38%; top: 50px; } .node-grid { right: 7%; top: 50px; }
+    .node-storage { left: 7%; top: 245px; } .node-hub { left: 38%; top: 218px; min-width: 170px; padding: 18px 12px; } .node-vpp { right: 7%; top: 245px; }
+    .load-row { position: absolute; left: 7%; right: 7%; top: 354px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .load { padding: 10px; text-align: center; color: #a8c7d5; border: 1px solid rgba(78,184,255,.25); background: rgba(78,184,255,.05); font-size: 11px; }
+    .flow-line { position: absolute; height: 1px; transform-origin: left center; background: linear-gradient(90deg, currentColor, rgba(0,229,255,.15)); box-shadow: 0 0 7px currentColor; }
+    .flow-a { left: 18%; top: 118px; width: 34%; transform: rotate(24deg); } .flow-b { left: 48%; top: 117px; width: 17%; transform: rotate(76deg); }
+    .flow-c { right: 17%; top: 118px; width: 31%; transform-origin: right center; transform: rotate(-24deg); }
+    .flow-d { left: 18%; top: 270px; width: 30%; } .flow-e { left: 54%; top: 270px; width: 27%; }
+    .market-row { position: absolute; left: 7%; right: 7%; bottom: 24px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .market-card { min-height: 65px; padding: 9px; color: #8fb3c5; border-top: 2px solid currentColor; background: rgba(3,18,41,.62); text-align: center; font-size: 10px; }
+    .market-card strong { display: block; margin-bottom: 5px; color: currentColor; font-size: 12px; }
+
+    .policy-links { padding: 12px; display: grid; gap: 8px; }
+    .policy-link { padding: 10px; border: 1px solid rgba(0,229,255,.14); background: rgba(3,18,41,.35); }
+    .policy-link .tag { color: var(--orange); font: 9px var(--data); }
+    .policy-link h3 { margin: 6px 0 5px; color: white; font-size: 12px; }
+    .policy-link p { margin: 0; color: #7298ad; font-size: 10px; line-height: 1.5; }
+    .policy-link b { display: block; margin-top: 7px; color: var(--green); font-size: 10px; }
+    .scene-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; padding: 11px 12px; border-top: 1px solid rgba(0,229,255,.1); }
+    .scene-actions button { min-height: 38px; color: #a9cad8; border: 1px solid rgba(0,229,255,.22); background: rgba(0,229,255,.05); }
+
+    .radar-workspace { height: 620px; display: grid; grid-template-columns: minmax(580px, 1.35fr) minmax(420px, .9fr); gap: 12px; }
+    .timeline { padding: 12px 15px; }
+    .event { position: relative; display: grid; grid-template-columns: 82px 1fr auto; gap: 12px; min-height: 104px; padding: 12px 10px 12px 21px; border-bottom: 1px solid rgba(0,229,255,.1); }
+    .event::before { content: ""; position: absolute; left: 5px; top: 18px; width: 8px; height: 8px; border-radius: 50%; background: currentColor; box-shadow: 0 0 9px currentColor; }
+    .event time { color: currentColor; font: 11px var(--data); }
+    .event h3 { margin: 0 0 6px; color: white; font-size: 14px; }
+    .event p { margin: 0; color: #759bad; font-size: 11px; line-height: 1.55; }
+    .impact { align-self: start; padding: 5px 7px; color: currentColor; border: 1px solid currentColor; font-size: 10px; }
+    .impact-list { padding: 12px; display: grid; gap: 9px; }
+    .impact-card { padding: 12px; border: 1px solid rgba(0,229,255,.14); background: rgba(3,18,41,.36); }
+    .impact-card strong { display: block; color: white; font-size: 13px; }
+    .impact-card p { margin: 7px 0; color: #789eb2; line-height: 1.52; font-size: 11px; }
+    .impact-card span { color: var(--orange); font-size: 10px; }
+
+    @media (max-width: 1300px) {
+      .header { grid-template-columns: 290px 1fr 300px; }
+      nav span { padding: 0 7px; font-size: 12px; }
+      .workspace { grid-template-columns: 290px minmax(410px, 1fr) 350px; }
+      .benchmark-workspace { grid-template-columns: 250px minmax(470px, 1fr) 335px; }
+      .energy-workspace { grid-template-columns: 250px minmax(520px, 1fr) 330px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="brand">
+      <div class="brand-mark"><span>零</span></div>
+      <div><strong>零碳园区全过程决策与申报咨询平台</strong><small>ZERO-CARBON PARK DECISION OS</small></div>
+    </div>
+    <nav>
+      <span>◈ 园区驾驶舱</span><span>⌁ 零碳建设路径</span><span>◇ 全过程项目地图</span>
+      <span class="active"><i>▤</i> 政策与申报</span><span>◉ 投资与资金</span><span>✦ 智能问数</span>
+    </nav>
+    <div class="park">
+      <div><strong>晋北资源型工业零碳示范园区</strong><small>山西省 · 晋北地区</small></div>
+    </div>
+  </header>
+
+  <main>
+    <section class="heading">
+      <div class="index"><span>04</span></div>
+      <div>
+        <p id="page-eyebrow" class="eyebrow">POLICY INTELLIGENCE & APPLICATION</p>
+        <h1 id="page-title">政策知识与申报中枢</h1>
+      </div>
+    </section>
+
+    <section class="tabs">
+      <button class="active" data-view="library">政策知识库</button><button data-view="benchmark">申报对标</button><button data-view="shanxi">山西能源专题</button><button data-view="radar">政策更新雷达</button>
+    </section>
+
+    <section id="view-metrics" class="metrics">
+      <article class="metric cyan"><span>政策资料</span><strong>28</strong><small>份</small></article>
+      <article class="metric blue"><span>国家政策</span><strong>12</strong><small>份</small></article>
+      <article class="metric green"><span>山西能源政策</span><strong>11</strong><small>份</small></article>
+      <article class="metric orange"><span>技术标准与导则</span><strong>5</strong><small>份 · 状态可辨</small></article>
+    </section>
+
+    <section id="view-workspace" class="workspace">
+      <aside class="panel">
+        <div class="panel-head"><small>OFFICIAL DOCUMENT LIBRARY</small><strong>权威资料目录</strong></div>
+        <div class="filters">
+          <label class="search"><span>⌕</span><input placeholder="搜政策名称、文号或关键词" /></label>
+          <div class="filter-row"><button class="chip active">全部</button><button class="chip">国家</button><button class="chip">山西</button><button class="chip">现行</button><button class="chip">在编</button></div>
+        </div>
+        <div class="docs">
+          <article class="doc active"><div class="doc-top"><span class="level">国家级</span><span>发改环资〔2025〕910号</span><span class="valid">● 现行</span></div><h3>关于开展零碳园区建设的通知</h3><p>国家发展改革委 · 工业和信息化部 · 国家能源局</p></article>
+          <article class="doc"><div class="doc-top"><span class="level">国家级</span><span>附件3</span><span class="valid">● 试行</span></div><h3>国家级零碳园区建设指标体系</h3><p>核心指标 · 引导指标 · 验收口径</p></article>
+          <article class="doc"><div class="doc-top"><span class="level">国家级</span><span>附件4</span><span class="valid">● 试行</span></div><h3>零碳园区碳排放核算方法</h3><p>核算边界 · 能源活动 · 工业过程</p></article>
+          <article class="doc"><div class="doc-top"><span class="orange">山西省</span><span>2026</span><span class="valid">● 现行</span></div><h3>山西省零碳园区建设工作方案</h3><p>省级园区 · 四年周期 · 动态调整</p></article>
+          <article class="doc"><div class="doc-top"><span class="orange">山西能源</span><span>专题</span><span class="valid">● 现行</span></div><h3>绿电直连、新型储能与虚拟电厂政策包</h3><p>按场景归集多份官方文件</p></article>
+        </div>
+      </aside>
+
+      <article class="panel reader">
+        <div class="doc-title">
+          <div class="meta"><span>国家级</span><span>·</span><span>政策文件</span><span>·</span><span class="green">现行</span></div>
+          <h2>关于开展零碳园区建设的通知</h2>
+          <p>发改环资〔2025〕910号 · 2025年6月30日</p>
+        </div>
+        <div class="source-bar"><span>国家发展改革委</span><span>·</span><span>工业和信息化部</span><span>·</span><span>国家能源局</span><button>打开官方原文 ↗</button></div>
+        <div class="paper">
+          <p class="clause" data-page="P.01">各地区发展改革委会同工业和信息化、能源主管部门，推荐有条件、有意愿的园区建设国家级零碳园区。</p>
+          <p class="clause selected" data-page="P.02">申报园区应综合分析项目可行性，测算<strong>经济、环境、社会效益</strong>，并按要求编制建设方案。</p>
+          <p class="clause" data-page="P.03">建设任务包括加快园区用能结构转型、大力推进园区节能降碳、调整优化园区产业结构等。</p>
+          <p class="clause" data-page="附3">单位能耗碳排放是核心指标，同时考察清洁能源消费占比、工业固体废物综合利用率等引导指标。</p>
+          <p class="clause" data-page="附4">园区碳排放核算边界覆盖能源活动和工业生产过程产生的直接或间接二氧化碳排放。</p>
+        </div>
+        <div class="reader-actions"><button class="primary">加入申报对标</button><button>生成材料清单</button><button>关联园区项目</button><button>收藏</button></div>
+      </article>
+
+      <aside class="panel ai">
+        <div class="panel-head"><small>EVIDENCE-GROUNDED ANSWER</small><strong>问政策 · 问园区</strong></div>
+        <div class="model-strip"><span class="status-dot"></span><b>政策问答</b><span>· 已引用 3 条资料</span></div>
+        <div class="ask">
+          <div class="ask-box">山西资源型工业园申报国家级零碳园区，现阶段最需要补齐什么？</div>
+          <div class="ask-actions"><span>已选择：国家政策 + 山西专题 + 园区底表</span><button>生成证据答案</button></div>
+        </div>
+        <div class="answer">
+          <span class="label">决策结论</span>
+          <h3>优先补齐 3 类申报证据</h3>
+          <p>当前园区基础方向匹配，但应先闭合基准年碳核算、重点项目可研和绿电供需平衡证明，再进入正式申报文本编制。</p>
+          <div class="evidence">
+            <div class="orange"><b>[证据 01]</b>910号文件：需完成项目可行性与综合效益测算</div>
+            <div class="green"><b>[证据 02]</b>附件4：需明确核算边界及基准年排放</div>
+            <div class="cyan"><b>[园区底表]</b>当前申报条件 14/17，尚有 3 项未闭合</div>
+          </div>
+          <div class="answer-note">点击引用内容可定位原文</div>
+        </div>
+        <div class="link-actions"><small>把答案变成工作</small><div><button>生成申报任务</button><button>加入项目节点</button><button>生成专题简报</button></div></div>
+      </aside>
+    </section>
+
+    <template id="benchmark-metrics">
+      <article class="metric green"><span>申报材料准备</span><strong>14/17</strong><small>项</small></article>
+      <article class="metric orange"><span>核心指标</span><strong>待核算</strong><small>基准年口径</small></article>
+      <article class="metric pink"><span>清洁能源占比</span><strong>43%</strong><small>目标不低于 90%</small></article>
+      <article class="metric orange"><span>优先补齐</span><strong>3</strong><small>项关键任务</small></article>
+    </template>
+    <template id="benchmark-workspace">
+      <aside class="panel">
+        <div class="panel-head"><small>APPLICATION PROCESS</small><strong>申报推进阶段</strong></div>
+        <div class="stage-list">
+          <div class="stage-item done"><span class="stage-num">01</span><div class="stage-copy"><strong>园区资格确认 <b>已完成</b></strong><small>依法设立、边界与实施主体</small></div></div>
+          <div class="stage-item active"><span class="stage-num">02</span><div class="stage-copy"><strong>基准年碳盘查 <b>进行中</b></strong><small>能源活动与工业过程排放</small></div></div>
+          <div class="stage-item"><span class="stage-num">03</span><div class="stage-copy"><strong>建设指标测算</strong><small>核心指标与五项引导指标</small></div></div>
+          <div class="stage-item"><span class="stage-num">04</span><div class="stage-copy"><strong>重点项目论证</strong><small>可行性与综合效益测算</small></div></div>
+          <div class="stage-item"><span class="stage-num">05</span><div class="stage-copy"><strong>建设方案编制</strong><small>任务、投资、进度与保障机制</small></div></div>
+          <div class="stage-item"><span class="stage-num">06</span><div class="stage-copy"><strong>审核推荐</strong><small>市级审核与省级推荐</small></div></div>
+        </div>
+      </aside>
+
+      <article class="panel">
+        <div class="panel-head"><small>NATIONAL TRIAL INDICATORS</small><strong>国家试行指标对标</strong></div>
+        <div class="indicator-list">
+          <div class="indicator orange">
+            <div class="indicator-head"><strong>单位能耗碳排放</strong><span>核心指标</span><b>待核算</b></div>
+            <div class="pending-scale">完成基准年能源平衡表后自动测算适用门槛</div>
+            <p class="benchmark-note">国家门槛按园区年综合能耗规模分档判定。</p>
+          </div>
+          <div class="indicator pink">
+            <div class="indicator-head"><strong>清洁能源消费占比</strong><span>引导指标 · 不低于 90%</span><b>43%</b></div>
+            <div class="scale" style="--value:43%;--threshold:90%"><div class="scale-fill"></div></div>
+            <div class="scale-labels"><span>当前 43%</span><span>差距 47 个百分点</span><span>门槛 90%</span></div>
+          </div>
+          <div class="indicator orange">
+            <div class="indicator-head"><strong>工业固体废物综合利用率</strong><span>引导指标 · 不低于 80%</span><b>待录入</b></div>
+            <div class="pending-scale">补录重点企业年度固废产生量与综合利用量</div>
+          </div>
+          <div class="indicator orange">
+            <div class="indicator-head"><strong>余热余冷余压综合利用率</strong><span>引导指标 · 不低于 50%</span><b>待录入</b></div>
+            <div class="pending-scale">补录可回收资源量、已利用量和改造项目</div>
+          </div>
+          <div class="indicator orange">
+            <div class="indicator-head"><strong>工业用水重复利用率</strong><span>引导指标 · 不低于 80%</span><b>待录入</b></div>
+            <div class="pending-scale">补录园区取水、排水和循环利用数据</div>
+          </div>
+        </div>
+      </article>
+
+      <aside class="panel">
+        <div class="panel-head"><small>GAPS & ACTIONS</small><strong>当前缺口与责任动作</strong></div>
+        <div class="gap-list">
+          <article class="gap-card"><div class="gap-top"><span>最高优先级</span><span>2026-09-15</span></div><h3>完成基准年碳排放核算</h3><p>闭合能源消费、外购电热和工业过程活动数据。</p><div class="owner"><span>责任单位</span><b>园区能源管理中心</b></div></article>
+          <article class="gap-card"><div class="gap-top"><span>关键前置</span><span>2026-09-30</span></div><h3>重点项目可研与效益测算</h3><p>统一投资、减排量、建设周期及资金来源口径。</p><div class="owner"><span>责任单位</span><b>建设发展部 / 项目公司</b></div></article>
+          <article class="gap-card"><div class="gap-top"><span>指标支撑</span><span>2026-09-20</span></div><h3>形成绿电供需平衡方案</h3><p>补充园区内开发、园区外采购、储能调节与交易安排。</p><div class="owner"><span>责任单位</span><b>管委会 / 供电公司</b></div></article>
+        </div>
+        <div class="gap-actions"><button>导出缺口清单</button><button class="primary">生成申报计划</button></div>
+      </aside>
+    </template>
+
+    <template id="shanxi-metrics">
+      <article class="metric cyan"><span>园区光伏潜力</span><strong>62</strong><small>MW</small></article>
+      <article class="metric orange"><span>共享储能规划</span><strong>100/200</strong><small>MW/MWh</small></article>
+      <article class="metric blue"><span>可调节负荷</span><strong>80</strong><small>MW</small></article>
+      <article class="metric pink"><span>绿电采购缺口</span><strong>1.7</strong><small>亿kWh</small></article>
+    </template>
+    <template id="shanxi-workspace">
+      <aside class="panel">
+        <div class="panel-head"><small>ENERGY TRANSITION SCENARIOS</small><strong>山西政策场景</strong></div>
+        <div class="scene-list">
+          <article class="scene-card active"><span class="scene-icon">直</span><div><strong>绿电直连</strong><small>一对一、一对多供电组织</small></div></article>
+          <article class="scene-card"><span class="scene-icon orange">储</span><div><strong>新型储能</strong><small>共享储能、独立储能与长时储能</small></div></article>
+          <article class="scene-card"><span class="scene-icon green">聚</span><div><strong>虚拟电厂</strong><small>负荷与储能资源聚合入市</small></div></article>
+          <article class="scene-card"><span class="scene-icon blue">市</span><div><strong>电力市场</strong><small>现货、辅助服务与需求响应</small></div></article>
+          <article class="scene-card"><span class="scene-icon pink">证</span><div><strong>绿电与绿证</strong><small>采购、交易、认证与产品碳足迹</small></div></article>
+          <article class="scene-card"><span class="scene-icon">碳</span><div><strong>能碳管理</strong><small>能源流、碳数据流与产品流</small></div></article>
+        </div>
+      </aside>
+
+      <article class="panel">
+        <div class="panel-head"><small>SOURCE-GRID-LOAD-STORAGE MAP</small><strong>园区能源与市场场景图</strong></div>
+        <div class="topology">
+          <span class="topology-zone zone-source">GREEN POWER SUPPLY</span><span class="topology-zone zone-hub">PARK ENERGY HUB</span><span class="topology-zone zone-market">MARKET MECHANISM</span>
+          <div class="energy-node cyan node-wind"><strong>周边风光基地</strong><span>园区外绿电</span></div>
+          <div class="energy-node green node-pv"><strong>园区分布式光伏</strong><span>62 MW</span></div>
+          <div class="energy-node blue node-grid"><strong>大电网支撑</strong><span>110/220 kV</span></div>
+          <div class="flow-line cyan flow-a"></div><div class="flow-line green flow-b"></div><div class="flow-line blue flow-c"></div>
+          <div class="energy-node orange node-storage"><strong>共享储能</strong><span>100MW/200MWh</span></div>
+          <div class="energy-node cyan node-hub"><strong>园区综合能源中枢</strong><span>源网荷储协同</span></div>
+          <div class="energy-node green node-vpp"><strong>虚拟电厂</strong><span>80MW 灵活负荷</span></div>
+          <div class="flow-line orange flow-d"></div><div class="flow-line green flow-e"></div>
+          <div class="load-row"><div class="load">煤化工负荷</div><div class="load">新材料负荷</div><div class="load">高端装备负荷</div></div>
+          <div class="market-row">
+            <div class="market-card cyan"><strong>绿电直连</strong>降低绿电供给与园区负荷的空间距离</div>
+            <div class="market-card blue"><strong>现货交易</strong>结合分时价格安排生产与储能运行</div>
+            <div class="market-card green"><strong>需求响应</strong>聚合可调负荷参与系统调节</div>
+            <div class="market-card orange"><strong>绿证认证</strong>支撑绿色产品与外向型制造</div>
+          </div>
+        </div>
+      </article>
+
+      <aside class="panel">
+        <div class="panel-head"><small>POLICY TO PROJECT</small><strong>政策关联与落地机会</strong></div>
+        <div class="policy-links">
+          <article class="policy-link"><span class="tag">山西零碳园区建设</span><h3>绿电项目、配套储能和接入工程形成协同支持</h3><p>用于组织园区建设任务、项目清单与省级支持条件。</p><b>关联：光伏、储能、电网接入</b></article>
+          <article class="policy-link"><span class="tag">山西新型储能发展</span><h3>支持源网荷储、虚拟电厂和低碳园区场景</h3><p>可进一步分析储能定位、市场收益和资源聚合方式。</p><b>关联：共享储能、VPP</b></article>
+          <article class="policy-link"><span class="tag">山西能源转型部署</span><h3>绿电园区叠加直连、微电网和增量配电</h3><p>结合周边风光资源、负荷特性与电网接入条件选型。</p><b>关联：绿电直连、园区配网</b></article>
+        </div>
+        <div class="scene-actions"><button>打开政策专题</button><button>生成项目组合</button></div>
+      </aside>
+    </template>
+
+    <template id="radar-metrics">
+      <article class="metric cyan"><span>近期政策动态</span><strong>6</strong><small>条</small></article>
+      <article class="metric pink"><span>高影响变化</span><strong>2</strong><small>条</small></article>
+      <article class="metric orange"><span>申报窗口</span><strong>1</strong><small>项进行中</small></article>
+      <article class="metric green"><span>已关联项目</span><strong>9</strong><small>项</small></article>
+    </template>
+    <template id="radar-workspace">
+      <article class="panel">
+        <div class="panel-head"><small>POLICY TIMELINE</small><strong>政策动态时间轴</strong></div>
+        <div class="timeline">
+          <article class="event pink"><time>2026-06-18</time><div><h3>山西省零碳园区建设工作部署</h3><p>明确省级园区建设、四年周期评估以及绿电直连、配套储能和电网接入支持方向。</p></div><span class="impact">高影响</span></article>
+          <article class="event orange"><time>2026-06-08</time><div><h3>山西省新型储能高质量发展实施方案</h3><p>拓展源网荷储、虚拟电厂、低碳园区等融合应用场景，强化储能多元化市场参与。</p></div><span class="impact">项目机会</span></article>
+          <article class="event cyan"><time>2026-05-08</time><div><h3>山西能源转型重点任务更新</h3><p>推进绿电园区、绿电直连、虚拟电厂和零低碳园区协同建设。</p></div><span class="impact">持续跟踪</span></article>
+          <article class="event green"><time>2025-12-26</time><div><h3>首批国家级零碳园区建设名单公布</h3><p>大同经开区和阳泉高新区进入首批建设名单，可形成省内对标样本。</p></div><span class="impact">对标案例</span></article>
+        </div>
+      </article>
+      <aside class="panel">
+        <div class="panel-head"><small>IMPACT ON THE PARK</small><strong>对园区工作的影响</strong></div>
+        <div class="impact-list">
+          <article class="impact-card"><strong>储能项目定位需同步复核</strong><p>结合共享容量、虚拟电厂聚合和现货市场收益重新校核运营边界。</p><span>关联：共享储能示范项目</span></article>
+          <article class="impact-card"><strong>绿电直连方案进入前置论证</strong><p>需要将周边新能源资源、园区负荷、电网接入和交易组织统一测算。</p><span>关联：62MW光伏与绿电采购</span></article>
+          <article class="impact-card"><strong>申报材料增加省级政策支撑</strong><p>把山西支持措施对应到项目清单、建设周期和资金安排。</p><span>关联：国家级零碳园区申报</span></article>
+        </div>
+        <div class="gap-actions"><button>生成影响清单</button><button class="primary">更新项目任务</button></div>
+      </aside>
+    </template>
+  </main>
+  <script>
+    const titles = {
+      library: ['POLICY INTELLIGENCE & APPLICATION', '政策知识与申报中枢'],
+      benchmark: ['APPLICATION READINESS & GAP', '国家级零碳园区申报对标'],
+      shanxi: ['SHANXI ENERGY TRANSITION', '山西能源与园区转型专题'],
+      radar: ['POLICY UPDATE & IMPACT', '政策更新雷达'],
+    }
+    const metrics = document.querySelector('#view-metrics')
+    const workspace = document.querySelector('#view-workspace')
+    const libraryMetrics = metrics.innerHTML
+    const libraryWorkspace = workspace.innerHTML
+
+    document.querySelectorAll('[data-view]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const view = button.dataset.view
+        document.querySelectorAll('[data-view]').forEach((item) => item.classList.toggle('active', item === button))
+        document.querySelector('#page-eyebrow').textContent = titles[view][0]
+        document.querySelector('#page-title').textContent = titles[view][1]
+        if (view === 'library') {
+          metrics.innerHTML = libraryMetrics
+          workspace.className = 'workspace'
+          workspace.innerHTML = libraryWorkspace
+          return
+        }
+        metrics.innerHTML = document.querySelector(`#${view}-metrics`).innerHTML
+        workspace.className = `${view === 'shanxi' ? 'energy' : view}-workspace`
+        workspace.innerHTML = document.querySelector(`#${view}-workspace`).innerHTML
+      })
+    })
+  </script>
+</body>
+</html>
