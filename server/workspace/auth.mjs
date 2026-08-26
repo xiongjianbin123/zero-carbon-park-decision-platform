@@ -6,14 +6,20 @@ export function getTrustedIdentity(request, env) {
   const url = new URL(request.url)
   let userId = request.headers.get('oai-authenticated-user-id')?.trim()
   let email = request.headers.get('oai-authenticated-user-email')?.trim().toLowerCase()
+  let development = false
 
-  if ((!userId || !email) && env.DEV_AUTH_ENABLED === 'true' && LOOPBACK_HOSTS.has(url.hostname)) {
-    userId = request.headers.get('x-dev-user-id')?.trim()
-    email = request.headers.get('x-dev-user-email')?.trim().toLowerCase()
+  if (env.DEV_AUTH_ENABLED === 'true' && LOOPBACK_HOSTS.has(url.hostname)) {
+    const developmentUserId = request.headers.get('x-dev-user-id')?.trim()
+    const developmentEmail = request.headers.get('x-dev-user-email')?.trim().toLowerCase()
+    if (developmentUserId && developmentEmail) {
+      userId = developmentUserId
+      email = developmentEmail
+      development = true
+    }
   }
 
   if (!userId || !email) throw new WorkspaceError('AUTH_REQUIRED', '请先登录项目工作台。', 401)
-  return { sitesUserId: userId, email: cleanEmail(email) }
+  return { sitesUserId: userId, email: cleanEmail(email), development }
 }
 
 async function findWorkspaceUser(db, identity) {
@@ -28,10 +34,10 @@ export async function requireOrgUser(db, identity, env, deps, allowedRoles) {
   let user = await findWorkspaceUser(db, identity)
   const timestamp = deps.now()
 
-  if (!user && env.WORKSPACE_OWNER_USER_ID && identity.sitesUserId === env.WORKSPACE_OWNER_USER_ID) {
+  if (!user && (identity.development || (env.WORKSPACE_OWNER_USER_ID && identity.sitesUserId === env.WORKSPACE_OWNER_USER_ID))) {
     const id = deps.id()
     const ownerEmail = env.WORKSPACE_OWNER_EMAIL ? cleanEmail(env.WORKSPACE_OWNER_EMAIL) : identity.email
-    if (ownerEmail !== identity.email) {
+    if (!identity.development && ownerEmail !== identity.email) {
       throw new WorkspaceError('WORKSPACE_ACCESS_DENIED', '当前账号未获准进入项目工作台。', 403)
     }
     await db.prepare(`INSERT INTO workspace_users
@@ -66,4 +72,3 @@ export async function requireParkRole(db, parkId, user, allowedRoles) {
   }
   return member
 }
-

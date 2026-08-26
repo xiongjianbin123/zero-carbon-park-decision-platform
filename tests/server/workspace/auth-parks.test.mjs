@@ -112,3 +112,27 @@ test('development identity headers are accepted only on loopback when explicitly
   assert.equal(publicResponse.status, 401)
   assert.equal(loopbackResponse.status, 200)
 })
+
+test('explicit loopback test identity overrides local Sites demo identity without enabling public spoofing', async () => {
+  const env = workspaceEnv({
+    DEV_AUTH_ENABLED: 'true',
+    WORKSPACE_OWNER_USER_ID: undefined,
+    WORKSPACE_OWNER_EMAIL: undefined,
+  })
+  const handler = createWorkerHandler()
+  const loopback = new Request('http://127.0.0.1:4173/api/auth/me', { headers: {
+    'oai-authenticated-user-id': 'sites-demo-user',
+    'oai-authenticated-user-email': 'seedy@sites.test',
+    'x-dev-user-id': 'e2e-owner',
+    'x-dev-user-email': 'e2e@example.test',
+  } })
+  const publicRequest = new Request('https://park.example/api/auth/me', { headers: {
+    'x-dev-user-id': 'e2e-owner',
+    'x-dev-user-email': 'e2e@example.test',
+  } })
+
+  const localResponse = await handler(loopback, env)
+  assert.equal(localResponse.status, 200)
+  assert.equal((await localResponse.json()).user.email, 'e2e@example.test')
+  assert.equal((await handler(publicRequest, env)).status, 401)
+})

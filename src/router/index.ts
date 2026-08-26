@@ -9,6 +9,10 @@ import QaPage from '@/pages/qa/QaPage.vue'
 import WorkspaceShell from '@/components/workspace/WorkspaceShell.vue'
 import WorkspaceOverviewPage from '@/pages/workspace/WorkspaceOverviewPage.vue'
 import WorkspaceOnboardingPage from '@/pages/workspace/WorkspaceOnboardingPage.vue'
+import WorkspaceImportsPage from '@/pages/workspace/WorkspaceImportsPage.vue'
+import WorkspaceDiagnosisPage from '@/pages/workspace/WorkspaceDiagnosisPage.vue'
+import WorkspaceTasksPage from '@/pages/workspace/WorkspaceTasksPage.vue'
+import WorkspaceDeliverablesPage from '@/pages/workspace/WorkspaceDeliverablesPage.vue'
 
 export const router = createRouter({
   history: createWebHashHistory(),
@@ -28,6 +32,10 @@ export const router = createRouter({
       children: [
         { path: '', name: 'workspace-overview', component: WorkspaceOverviewPage },
         { path: 'onboarding', name: 'workspace-onboarding', component: WorkspaceOnboardingPage },
+        { path: 'imports', name: 'workspace-imports', component: WorkspaceImportsPage },
+        { path: 'diagnosis', name: 'workspace-diagnosis', component: WorkspaceDiagnosisPage },
+        { path: 'tasks', name: 'workspace-tasks', component: WorkspaceTasksPage },
+        { path: 'deliverables', name: 'workspace-deliverables', component: WorkspaceDeliverablesPage },
       ],
     },
     { path: '/:pathMatch(.*)*', redirect: '/dashboard' },

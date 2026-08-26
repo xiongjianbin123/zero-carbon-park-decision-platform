@@ -41,3 +41,72 @@ export interface ParkProject {
   role: 'admin' | 'manager' | 'specialist' | 'viewer'
 }
 
+export interface ImportBatch {
+  id: string
+  kind: ImportKind
+  filename: string
+  periodStart: string | null
+  periodEnd: string | null
+  intervalMinutes: number | null
+  acceptedRows: number
+  rejectedRows: number
+  status: 'pending' | 'succeeded' | 'failed' | 'replaced'
+  createdAt: string
+  completedAt: string | null
+}
+
+export type DiagnosisStatus = 'achieved' | 'gap' | 'missing_data' | 'not_applicable'
+
+export interface IndicatorResult {
+  id: string
+  key: string
+  title: string
+  currentValue: number | null
+  targetValue: number | null
+  unit: string
+  status: DiagnosisStatus
+  calculationNote: string
+  missingData: string[]
+}
+
+export interface DiagnosisRun {
+  runId?: string
+  version: string
+  calculatedAt: string
+  dataBaselineDate: string | null
+  results: IndicatorResult[]
+  missingData: string[]
+}
+
+export type TaskStatus = 'draft' | 'open' | 'in_progress' | 'blocked' | 'done' | 'cancelled'
+
+export interface WorkspaceTask {
+  id: string
+  parkId?: string
+  sourceIndicatorId?: string | null
+  taskType: string
+  title: string
+  ownerName: string
+  plannedDate: string
+  status: TaskStatus
+  reviewNote: string
+  evidenceCount: number
+  createdAt?: string
+  updatedAt?: string
+}
+
+export type ExportType = 'diagnosis_report' | 'task_register' | 'project_investment' | 'evidence_catalog'
+
+export interface ExportPreview {
+  type: ExportType
+  snapshot: Record<string, any>
+  recordCount: number
+}
+
+export interface WorkspaceExport {
+  id: string
+  type: ExportType
+  summary: string
+  downloadAvailable: boolean
+  generatedAt: string
+}

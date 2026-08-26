@@ -64,5 +64,21 @@ describe('WorkspaceShell', () => {
     expect(wrapper.text()).toContain('当前账号尚未加入项目工作台')
     expect(wrapper.find('[data-testid="workspace-sign-in"]').exists()).toBe(false)
   })
-})
 
+  it('renders the onboarding child when an admin has no park yet', async () => {
+    const state = createWorkspaceState({
+      me: vi.fn().mockResolvedValue({ id: 'owner', email: 'owner@example.test', orgRole: 'org_admin' }),
+      listParks: vi.fn().mockResolvedValue([]),
+    })
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/workspace', component: WorkspaceShell, children: [{ path: 'onboarding', component: { template: '<h1>建档表单已显示</h1>' } }] }],
+    })
+    await router.push('/workspace/onboarding')
+    await router.isReady()
+    const wrapper = mount({ template: '<RouterView />' }, { global: { plugins: [router], provide: { [WorkspaceStateKey as symbol]: state } } })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('建档表单已显示')
+  })
+})

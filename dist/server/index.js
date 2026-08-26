@@ -1210,14 +1210,21 @@ function getTrustedIdentity(request, env) {
 	const url = new URL(request.url);
 	let userId = request.headers.get("oai-authenticated-user-id")?.trim();
 	let email = request.headers.get("oai-authenticated-user-email")?.trim().toLowerCase();
-	if ((!userId || !email) && env.DEV_AUTH_ENABLED === "true" && LOOPBACK_HOSTS.has(url.hostname)) {
-		userId = request.headers.get("x-dev-user-id")?.trim();
-		email = request.headers.get("x-dev-user-email")?.trim().toLowerCase();
+	let development = false;
+	if (env.DEV_AUTH_ENABLED === "true" && LOOPBACK_HOSTS.has(url.hostname)) {
+		const developmentUserId = request.headers.get("x-dev-user-id")?.trim();
+		const developmentEmail = request.headers.get("x-dev-user-email")?.trim().toLowerCase();
+		if (developmentUserId && developmentEmail) {
+			userId = developmentUserId;
+			email = developmentEmail;
+			development = true;
+		}
 	}
 	if (!userId || !email) throw new WorkspaceError("AUTH_REQUIRED", "请先登录项目工作台。", 401);
 	return {
 		sitesUserId: userId,
-		email: cleanEmail(email)
+		email: cleanEmail(email),
+		development
 	};
 }
 async function findWorkspaceUser(db, identity) {
@@ -1228,9 +1235,10 @@ async function findWorkspaceUser(db, identity) {
 async function requireOrgUser(db, identity, env, deps, allowedRoles) {
 	let user = await findWorkspaceUser(db, identity);
 	const timestamp = deps.now();
-	if (!user && env.WORKSPACE_OWNER_USER_ID && identity.sitesUserId === env.WORKSPACE_OWNER_USER_ID) {
+	if (!user && (identity.development || env.WORKSPACE_OWNER_USER_ID && identity.sitesUserId === env.WORKSPACE_OWNER_USER_ID)) {
 		const id = deps.id();
-		if ((env.WORKSPACE_OWNER_EMAIL ? cleanEmail(env.WORKSPACE_OWNER_EMAIL) : identity.email) !== identity.email) throw new WorkspaceError("WORKSPACE_ACCESS_DENIED", "当前账号未获准进入项目工作台。", 403);
+		const ownerEmail = env.WORKSPACE_OWNER_EMAIL ? cleanEmail(env.WORKSPACE_OWNER_EMAIL) : identity.email;
+		if (!identity.development && ownerEmail !== identity.email) throw new WorkspaceError("WORKSPACE_ACCESS_DENIED", "当前账号未获准进入项目工作台。", 403);
 		await db.prepare(`INSERT INTO workspace_users
       (id, sites_user_id, email, org_role, invitation_status, last_login_at, created_at, updated_at)
       VALUES (?, ?, ?, 'org_admin', 'active', ?, ?, ?)`).bind(id, identity.sitesUserId, identity.email, timestamp, timestamp, timestamp).run();

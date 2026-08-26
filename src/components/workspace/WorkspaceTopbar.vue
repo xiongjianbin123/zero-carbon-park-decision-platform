@@ -1,10 +1,27 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { workspaceApi } from '@/services/workspaceApi'
 import { useWorkspaceState } from '@/stores/workspace'
 import WorkspaceStatusChip from './WorkspaceStatusChip.vue'
 
 const state = useWorkspaceState()
 const roleLabel = computed(() => ({ admin: '园区管理员', manager: '项目经理', specialist: '专业人员', viewer: '只读成员' }[state.selectedPark.value?.role || 'viewer']))
+const baselineDate = ref<string | null>(null)
+const completeness = ref('待诊断')
+async function loadTrack() {
+  const parkId = state.selectedParkId.value
+  baselineDate.value = state.selectedPark.value?.dataBaselineDate ?? null
+  completeness.value = '待诊断'
+  if (!parkId) return
+  try {
+    const diagnosis = await workspaceApi.latestDiagnosis(parkId)
+    baselineDate.value = diagnosis.dataBaselineDate
+    const indicator = diagnosis.results.find((item) => item.key === 'data_completeness')
+    completeness.value = indicator?.currentValue === null || indicator?.currentValue === undefined ? '缺少数据' : `${indicator.currentValue}%`
+  } catch { /* 尚未诊断时维持明确的待诊断状态 */ }
+}
+watch(() => state.selectedParkId.value, loadTrack)
+onMounted(loadTrack)
 </script>
 
 <template>
@@ -16,8 +33,8 @@ const roleLabel = computed(() => ({ admin: '园区管理员', manager: '项目�
         <option v-for="park in state.parks.value" :key="park.id" :value="park.id">{{ park.name }}</option>
       </select>
     </label>
-    <div class="track-node"><span>数据基准日</span><strong>{{ state.selectedPark.value?.dataBaselineDate || '尚未形成' }}</strong></div>
-    <div class="track-node"><span>资料完整度</span><strong class="cyan">待诊断</strong></div>
+    <div class="track-node"><span>数据基准日</span><strong>{{ baselineDate || '尚未形成' }}</strong></div>
+    <div class="track-node"><span>资料完整度</span><strong class="cyan">{{ completeness }}</strong></div>
     <div class="track-node"><span>当前角色</span><WorkspaceStatusChip :label="roleLabel" :tone="state.selectedPark.value?.role === 'viewer' ? 'yellow' : 'cyan'" /></div>
   </section>
 </template>
@@ -32,4 +49,3 @@ const roleLabel = computed(() => ({ admin: '园区管理员', manager: '项目�
 @media (max-width: 900px) { .baseline-track { grid-template-columns: 1fr 1fr; }.park-picker,.track-node { border-bottom: 1px solid rgba(0,229,255,.1); }.track-node::before { display:none; } }
 @media (max-width: 560px) { .baseline-track { grid-template-columns: 1fr; }.park-picker,.track-node { min-height: 58px; border-right: 0; } }
 </style>
-

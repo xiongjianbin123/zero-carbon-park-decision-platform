@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useWorkspaceState } from '@/stores/workspace'
 import WorkspaceTopbar from './WorkspaceTopbar.vue'
 
 const state = useWorkspaceState()
+const route = useRoute()
 const signInHref = `/signin-with-chatgpt?return_to=${encodeURIComponent('/#/workspace')}`
 const isAnonymous = computed(() => state.error.value?.status === 401)
 const isDenied = computed(() => state.error.value?.status === 403)
+const isOnboarding = computed(() => route.name === 'workspace-onboarding' || route.path.endsWith('/onboarding'))
 
 onMounted(() => { if (!state.initialized.value) void state.bootstrap() })
 </script>
@@ -30,9 +33,9 @@ onMounted(() => { if (!state.initialized.value) void state.bootstrap() })
     <template v-else-if="state.auth.value">
       <WorkspaceTopbar />
       <nav class="workspace-nav" aria-label="项目工作台导航">
-        <RouterLink to="/workspace">项目总览</RouterLink><RouterLink to="/workspace/onboarding">园区建档</RouterLink>
+        <RouterLink to="/workspace">项目总览</RouterLink><RouterLink to="/workspace/onboarding">园区建档</RouterLink><RouterLink to="/workspace/imports">数据导入</RouterLink><RouterLink to="/workspace/diagnosis">指标诊断</RouterLink><RouterLink to="/workspace/tasks">任务与佐证</RouterLink><RouterLink to="/workspace/deliverables">成果交付</RouterLink>
       </nav>
-      <div v-if="!state.parks.value.length" class="workspace-empty">
+      <div v-if="!state.parks.value.length && !isOnboarding" class="workspace-empty">
         <div><span>EMPTY BASELINE</span><h1>先建立第一个园区项目</h1><p>建档只创建空基线，不会复制示范园区的任何数字。</p></div>
         <RouterLink v-if="state.auth.value.orgRole === 'org_admin'" class="workspace-primary-action" to="/workspace/onboarding">开始园区建档</RouterLink>
       </div>
@@ -54,4 +57,3 @@ onMounted(() => { if (!state.initialized.value) void state.bootstrap() })
 @keyframes pulse { 50% { opacity:.35; transform:scale(.75); } }
 @media (max-width: 680px) { .workspace-empty { align-items:flex-start; flex-direction:column; }.workspace-gate,.workspace-empty { min-height:300px; padding:26px 20px; }.workspace-gate::after,.workspace-empty::after { opacity:.45; } }
 </style>
-
