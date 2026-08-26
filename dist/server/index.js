@@ -1102,6 +1102,379 @@ function createPolicySearch({ catalog, index }) {
 	};
 }
 //#endregion
+//#region server/workspace/db.mjs
+var migrationStatements = [
+	`CREATE TABLE IF NOT EXISTS workspace_users (id TEXT PRIMARY KEY, sites_user_id TEXT UNIQUE, email TEXT NOT NULL COLLATE NOCASE, org_role TEXT NOT NULL CHECK (org_role IN ('org_admin', 'org_member')), invitation_status TEXT NOT NULL CHECK (invitation_status IN ('invited', 'active', 'disabled')), invited_by TEXT, last_login_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS idx_workspace_users_email ON workspace_users(email)`,
+	`CREATE TABLE IF NOT EXISTS parks (id TEXT PRIMARY KEY, name TEXT NOT NULL, region TEXT NOT NULL, park_type TEXT NOT NULL, leading_industries TEXT NOT NULL DEFAULT '[]', baseline_year INTEGER NOT NULL, target_year INTEGER NOT NULL, application_direction TEXT NOT NULL DEFAULT '', data_baseline_date TEXT, status TEXT NOT NULL CHECK (status IN ('active', 'archived')), created_by TEXT NOT NULL REFERENCES workspace_users(id), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, CHECK (target_year >= baseline_year))`,
+	`CREATE INDEX IF NOT EXISTS idx_parks_status ON parks(status, updated_at DESC)`,
+	`CREATE TABLE IF NOT EXISTS park_members (id TEXT PRIMARY KEY, park_id TEXT NOT NULL REFERENCES parks(id) ON DELETE CASCADE, user_id TEXT REFERENCES workspace_users(id), email TEXT NOT NULL COLLATE NOCASE, role TEXT NOT NULL CHECK (role IN ('admin', 'manager', 'specialist', 'viewer')), member_status TEXT NOT NULL CHECK (member_status IN ('invited', 'active', 'disabled')), created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS idx_park_members_park_user ON park_members(park_id, user_id) WHERE user_id IS NOT NULL`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS idx_park_members_park_email ON park_members(park_id, email)`,
+	`CREATE TABLE IF NOT EXISTS imports (id TEXT PRIMARY KEY, park_id TEXT NOT NULL REFERENCES parks(id) ON DELETE CASCADE, import_type TEXT NOT NULL CHECK (import_type IN ('energy_monthly', 'load_curve', 'enterprises', 'projects')), original_filename TEXT NOT NULL, content_type TEXT NOT NULL, file_size INTEGER NOT NULL, file_digest TEXT NOT NULL, r2_key TEXT NOT NULL, period_start TEXT, period_end TEXT, interval_minutes INTEGER, accepted_rows INTEGER NOT NULL DEFAULT 0, rejected_rows INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL CHECK (status IN ('pending', 'succeeded', 'failed', 'replaced')), imported_by TEXT NOT NULL REFERENCES workspace_users(id), created_at TEXT NOT NULL, completed_at TEXT)`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS idx_imports_deduplicate ON imports(park_id, import_type, file_digest) WHERE status = 'succeeded'`,
+	`CREATE INDEX IF NOT EXISTS idx_imports_park_period ON imports(park_id, import_type, period_start, period_end)`,
+	`CREATE TABLE IF NOT EXISTS energy_monthly (id TEXT PRIMARY KEY, park_id TEXT NOT NULL REFERENCES parks(id) ON DELETE CASCADE, import_id TEXT NOT NULL REFERENCES imports(id) ON DELETE CASCADE, report_month TEXT NOT NULL, electricity_kwh REAL NOT NULL CHECK (electricity_kwh >= 0), electricity_cost_yuan REAL NOT NULL CHECK (electricity_cost_yuan >= 0), green_electricity_kwh REAL CHECK (green_electricity_kwh >= 0), natural_gas_m3 REAL CHECK (natural_gas_m3 >= 0), heat_gj REAL CHECK (heat_gj >= 0), steam_t REAL CHECK (steam_t >= 0))`,
+	`CREATE INDEX IF NOT EXISTS idx_energy_monthly_park_period ON energy_monthly(park_id, report_month)`,
+	`CREATE INDEX IF NOT EXISTS idx_energy_monthly_import ON energy_monthly(import_id)`,
+	`CREATE TABLE IF NOT EXISTS load_curve_points (id TEXT PRIMARY KEY, park_id TEXT NOT NULL REFERENCES parks(id) ON DELETE CASCADE, import_id TEXT NOT NULL REFERENCES imports(id) ON DELETE CASCADE, recorded_at TEXT NOT NULL, load_kw REAL NOT NULL CHECK (load_kw >= 0), solar_kw REAL CHECK (solar_kw >= 0), storage_charge_kw REAL CHECK (storage_charge_kw >= 0), storage_discharge_kw REAL CHECK (storage_discharge_kw >= 0), interval_minutes INTEGER NOT NULL CHECK (interval_minutes IN (15, 30, 60)))`,
+	`CREATE UNIQUE INDEX IF NOT EXISTS idx_load_curve_park_time ON load_curve_points(park_id, import_id, recorded_at)`,
+	`CREATE INDEX IF NOT EXISTS idx_load_curve_import ON load_curve_points(import_id)`,
+	`CREATE TABLE IF NOT EXISTS enterprises (id TEXT PRIMARY KEY, park_id TEXT NOT NULL REFERENCES parks(id) ON DELETE CASCADE, import_id TEXT NOT NULL REFERENCES imports(id) ON DELETE CASCADE, name TEXT NOT NULL, industry TEXT NOT NULL, annual_output_ten_thousand_yuan REAL CHECK (annual_output_ten_thousand_yuan >= 0), comprehensive_energy_tce REAL CHECK (comprehensive_energy_tce >= 0), annual_electricity_kwh REAL CHECK (annual_electricity_kwh >= 0), key_energy_consumer INTEGER NOT NULL DEFAULT 0 CHECK (key_energy_consumer IN (0, 1)))`,
+	`CREATE INDEX IF NOT EXISTS idx_enterprises_park_industry ON enterprises(park_id, industry)`,
+	`CREATE INDEX IF NOT EXISTS idx_enterprises_import ON enterprises(import_id)`,
+	`CREATE TABLE IF NOT EXISTS park_projects (id TEXT PRIMARY KEY, park_id TEXT NOT NULL REFERENCES parks(id) ON DELETE CASCADE, import_id TEXT REFERENCES imports(id) ON DELETE SET NULL, name TEXT NOT NULL, project_type TEXT NOT NULL, status TEXT NOT NULL, investment_ten_thousand_yuan REAL CHECK (investment_ten_thousand_yuan >= 0), capacity_value REAL CHECK (capacity_value >= 0), capacity_unit TEXT, planned_start_date TEXT, planned_operation_date TEXT, expected_reduction_tco2e REAL CHECK (expected_reduction_tco2e >= 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+	`CREATE INDEX IF NOT EXISTS idx_park_projects_park_status ON park_projects(park_id, status, planned_start_date)`,
+	`CREATE INDEX IF NOT EXISTS idx_park_projects_import ON park_projects(import_id)`,
+	`CREATE TABLE IF NOT EXISTS indicator_results (id TEXT PRIMARY KEY, diagnosis_run_id TEXT NOT NULL, park_id TEXT NOT NULL REFERENCES parks(id) ON DELETE CASCADE, indicator_key TEXT NOT NULL, indicator_version TEXT NOT NULL, current_value REAL, target_value REAL, unit TEXT, status TEXT NOT NULL CHECK (status IN ('achieved', 'gap', 'missing_data', 'not_applicable')), input_import_ids TEXT NOT NULL DEFAULT '[]', calculation_note TEXT NOT NULL, missing_data TEXT NOT NULL DEFAULT '[]', calculated_at TEXT NOT NULL)`,
+	`CREATE INDEX IF NOT EXISTS idx_indicator_results_park_run ON indicator_results(park_id, diagnosis_run_id, calculated_at DESC)`,
+	`CREATE INDEX IF NOT EXISTS idx_indicator_results_park_status ON indicator_results(park_id, status, calculated_at DESC)`,
+	`CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY, park_id TEXT NOT NULL REFERENCES parks(id) ON DELETE CASCADE, source_indicator_id TEXT REFERENCES indicator_results(id) ON DELETE SET NULL, task_type TEXT NOT NULL, title TEXT NOT NULL, owner_name TEXT NOT NULL, planned_date TEXT NOT NULL, status TEXT NOT NULL CHECK (status IN ('draft', 'open', 'in_progress', 'blocked', 'done')), review_note TEXT NOT NULL DEFAULT '', created_by TEXT NOT NULL REFERENCES workspace_users(id), created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+	`CREATE INDEX IF NOT EXISTS idx_tasks_park_status_date ON tasks(park_id, status, planned_date)`,
+	`CREATE INDEX IF NOT EXISTS idx_tasks_open ON tasks(park_id, planned_date) WHERE status IN ('draft', 'open', 'in_progress', 'blocked')`,
+	`CREATE TABLE IF NOT EXISTS files (id TEXT PRIMARY KEY, park_id TEXT NOT NULL REFERENCES parks(id) ON DELETE CASCADE, owner_type TEXT NOT NULL CHECK (owner_type IN ('task', 'park', 'import', 'export')), owner_id TEXT NOT NULL, r2_key TEXT NOT NULL UNIQUE, original_filename TEXT NOT NULL, content_type TEXT NOT NULL, file_size INTEGER NOT NULL CHECK (file_size >= 0), checksum TEXT NOT NULL, validation_summary TEXT NOT NULL DEFAULT '', uploaded_by TEXT NOT NULL REFERENCES workspace_users(id), uploaded_at TEXT NOT NULL)`,
+	`CREATE INDEX IF NOT EXISTS idx_files_park_owner ON files(park_id, owner_type, owner_id)`,
+	`CREATE TABLE IF NOT EXISTS exports (id TEXT PRIMARY KEY, park_id TEXT NOT NULL REFERENCES parks(id) ON DELETE CASCADE, export_type TEXT NOT NULL CHECK (export_type IN ('diagnosis_report', 'task_register', 'project_investment', 'evidence_catalog')), data_baseline_date TEXT, indicator_version TEXT, snapshot_json TEXT NOT NULL, snapshot_summary TEXT NOT NULL, r2_key TEXT, generated_by TEXT NOT NULL REFERENCES workspace_users(id), generated_at TEXT NOT NULL)`,
+	`CREATE INDEX IF NOT EXISTS idx_exports_park_type ON exports(park_id, export_type, generated_at DESC)`,
+	`CREATE TABLE IF NOT EXISTS audit_logs (id TEXT PRIMARY KEY, park_id TEXT REFERENCES parks(id) ON DELETE SET NULL, user_id TEXT, action TEXT NOT NULL, object_type TEXT NOT NULL, object_id TEXT, result TEXT NOT NULL CHECK (result IN ('succeeded', 'failed')), summary TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL)`,
+	`CREATE INDEX IF NOT EXISTS idx_audit_logs_park_time ON audit_logs(park_id, created_at DESC)`,
+	`CREATE INDEX IF NOT EXISTS idx_audit_logs_user_time ON audit_logs(user_id, created_at DESC)`
+];
+var initialized = /* @__PURE__ */ new WeakSet();
+async function ensureSchema(db) {
+	if (!db || initialized.has(db)) return;
+	await db.batch(migrationStatements.map((sql) => db.prepare(sql)));
+	initialized.add(db);
+}
+//#endregion
+//#region server/workspace/contracts.mjs
+var WorkspaceError = class extends Error {
+	constructor(code, message, status = 400, fieldErrors) {
+		super(message);
+		this.name = "WorkspaceError";
+		this.code = code;
+		this.status = status;
+		this.fieldErrors = fieldErrors;
+	}
+};
+function workspaceJson(body, status = 200) {
+	return Response.json(body, {
+		status,
+		headers: { "cache-control": "no-store" }
+	});
+}
+async function readWorkspaceJson(request) {
+	if (!request.headers.get("content-type")?.includes("application/json")) throw new WorkspaceError("INVALID_CONTENT_TYPE", "请求必须使用 application/json。", 415);
+	const text = await request.text();
+	if (text.length > 65536) throw new WorkspaceError("REQUEST_TOO_LARGE", "请求内容超过限制。", 413);
+	try {
+		return JSON.parse(text || "{}");
+	} catch {
+		throw new WorkspaceError("INVALID_JSON", "请求内容不是有效的 JSON。", 400);
+	}
+}
+function cleanText(value, field, { min = 1, max = 200 } = {}) {
+	const text = typeof value === "string" ? value.trim() : "";
+	if (text.length < min || text.length > max) throw new WorkspaceError("VALIDATION_FAILED", "提交内容不符合要求。", 422, { [field]: `请输入 ${min}—${max} 个字符。` });
+	return text;
+}
+function cleanEmail(value) {
+	const email = typeof value === "string" ? value.trim().toLowerCase() : "";
+	if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) throw new WorkspaceError("VALIDATION_FAILED", "提交内容不符合要求。", 422, { email: "请输入有效邮箱。" });
+	return email;
+}
+function asYear(value, field) {
+	const year = Number(value);
+	if (!Number.isInteger(year) || year < 2e3 || year > 2100) throw new WorkspaceError("VALIDATION_FAILED", "提交内容不符合要求。", 422, { [field]: "请输入 2000—2100 年。" });
+	return year;
+}
+function workspaceErrorResponse(error) {
+	if (error instanceof WorkspaceError) return workspaceJson({
+		code: error.code,
+		message: error.message,
+		...error.fieldErrors ? { fieldErrors: error.fieldErrors } : {}
+	}, error.status);
+	return workspaceJson({
+		code: "INTERNAL_ERROR",
+		message: "项目工作台暂时不可用。"
+	}, 500);
+}
+//#endregion
+//#region server/workspace/auth.mjs
+var LOOPBACK_HOSTS = /* @__PURE__ */ new Set([
+	"127.0.0.1",
+	"localhost",
+	"[::1]"
+]);
+function getTrustedIdentity(request, env) {
+	const url = new URL(request.url);
+	let userId = request.headers.get("oai-authenticated-user-id")?.trim();
+	let email = request.headers.get("oai-authenticated-user-email")?.trim().toLowerCase();
+	if ((!userId || !email) && env.DEV_AUTH_ENABLED === "true" && LOOPBACK_HOSTS.has(url.hostname)) {
+		userId = request.headers.get("x-dev-user-id")?.trim();
+		email = request.headers.get("x-dev-user-email")?.trim().toLowerCase();
+	}
+	if (!userId || !email) throw new WorkspaceError("AUTH_REQUIRED", "请先登录项目工作台。", 401);
+	return {
+		sitesUserId: userId,
+		email: cleanEmail(email)
+	};
+}
+async function findWorkspaceUser(db, identity) {
+	const bySitesId = await db.prepare(`SELECT * FROM workspace_users WHERE sites_user_id = ? AND invitation_status = 'active'`).bind(identity.sitesUserId).first();
+	if (bySitesId) return bySitesId;
+	return db.prepare(`SELECT * FROM workspace_users WHERE email = ? AND invitation_status IN ('invited', 'active')`).bind(identity.email).first();
+}
+async function requireOrgUser(db, identity, env, deps, allowedRoles) {
+	let user = await findWorkspaceUser(db, identity);
+	const timestamp = deps.now();
+	if (!user && env.WORKSPACE_OWNER_USER_ID && identity.sitesUserId === env.WORKSPACE_OWNER_USER_ID) {
+		const id = deps.id();
+		if ((env.WORKSPACE_OWNER_EMAIL ? cleanEmail(env.WORKSPACE_OWNER_EMAIL) : identity.email) !== identity.email) throw new WorkspaceError("WORKSPACE_ACCESS_DENIED", "当前账号未获准进入项目工作台。", 403);
+		await db.prepare(`INSERT INTO workspace_users
+      (id, sites_user_id, email, org_role, invitation_status, last_login_at, created_at, updated_at)
+      VALUES (?, ?, ?, 'org_admin', 'active', ?, ?, ?)`).bind(id, identity.sitesUserId, identity.email, timestamp, timestamp, timestamp).run();
+		user = await findWorkspaceUser(db, identity);
+	} else if (user && !user.sites_user_id) {
+		await db.prepare(`UPDATE workspace_users SET sites_user_id = ?, invitation_status = 'active', last_login_at = ?, updated_at = ? WHERE id = ?`).bind(identity.sitesUserId, timestamp, timestamp, user.id).run();
+		await db.prepare(`UPDATE park_members SET user_id = ?, member_status = 'active', updated_at = ? WHERE email = ? AND user_id IS NULL`).bind(user.id, timestamp, identity.email).run();
+		user = await findWorkspaceUser(db, identity);
+	} else if (user) await db.prepare("UPDATE workspace_users SET last_login_at = ?, updated_at = ? WHERE id = ?").bind(timestamp, timestamp, user.id).run();
+	if (!user) throw new WorkspaceError("WORKSPACE_ACCESS_DENIED", "当前账号未获准进入项目工作台。", 403);
+	if (allowedRoles && !allowedRoles.includes(user.org_role)) throw new WorkspaceError("ORG_ROLE_DENIED", "当前组织角色无权执行此操作。", 403);
+	return user;
+}
+async function requireParkRole(db, parkId, user, allowedRoles) {
+	const member = await db.prepare(`SELECT * FROM park_members
+    WHERE park_id = ? AND user_id = ? AND member_status = 'active'`).bind(parkId, user.id).first();
+	if (!member || allowedRoles && !allowedRoles.includes(member.role)) throw new WorkspaceError("PARK_ACCESS_DENIED", "当前账号无权访问或修改该园区。", 403);
+	return member;
+}
+//#endregion
+//#region server/workspace/parks.mjs
+var EDIT_ROLES = ["admin", "manager"];
+var PARK_ROLES = [
+	"admin",
+	"manager",
+	"specialist",
+	"viewer"
+];
+function parseJsonArray(value) {
+	try {
+		return JSON.parse(value || "[]");
+	} catch {
+		return [];
+	}
+}
+function parkShape(row) {
+	return {
+		id: row.id,
+		name: row.name,
+		region: row.region,
+		parkType: row.park_type,
+		leadingIndustries: parseJsonArray(row.leading_industries),
+		baselineYear: row.baseline_year,
+		targetYear: row.target_year,
+		applicationDirection: row.application_direction,
+		dataBaselineDate: row.data_baseline_date,
+		status: row.status,
+		role: row.role
+	};
+}
+function validatePark(body, current = {}) {
+	const baselineYear = body.baselineYear === void 0 ? current.baseline_year : asYear(body.baselineYear, "baselineYear");
+	const targetYear = body.targetYear === void 0 ? current.target_year : asYear(body.targetYear, "targetYear");
+	if (targetYear < baselineYear) throw new WorkspaceError("VALIDATION_FAILED", "提交内容不符合要求。", 422, { targetYear: "目标年不能早于基准年。" });
+	const industries = body.leadingIndustries === void 0 ? parseJsonArray(current.leading_industries) : body.leadingIndustries;
+	if (!Array.isArray(industries) || industries.length > 12 || industries.some((item) => typeof item !== "string" || !item.trim() || item.length > 40)) throw new WorkspaceError("VALIDATION_FAILED", "提交内容不符合要求。", 422, { leadingIndustries: "主导产业最多 12 项，每项不超过 40 字。" });
+	return {
+		name: body.name === void 0 ? current.name : cleanText(body.name, "name", { max: 120 }),
+		region: body.region === void 0 ? current.region : cleanText(body.region, "region", { max: 120 }),
+		parkType: body.parkType === void 0 ? current.park_type : cleanText(body.parkType, "parkType", { max: 80 }),
+		leadingIndustries: industries.map((item) => item.trim()),
+		baselineYear,
+		targetYear,
+		applicationDirection: body.applicationDirection === void 0 ? current.application_direction : cleanText(body.applicationDirection, "applicationDirection", {
+			min: 0,
+			max: 120
+		})
+	};
+}
+async function audit(db, deps, { parkId, userId, action, objectType, objectId, summary = "" }) {
+	await db.prepare(`INSERT INTO audit_logs (id, park_id, user_id, action, object_type, object_id, result, summary, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, 'succeeded', ?, ?)`).bind(deps.id(), parkId, userId, action, objectType, objectId, summary.slice(0, 300), deps.now()).run();
+}
+function createParkService({ db, env, deps }) {
+	return {
+		async me(identity) {
+			const user = await requireOrgUser(db, identity, env, deps);
+			return {
+				id: user.id,
+				email: user.email,
+				orgRole: user.org_role
+			};
+		},
+		async list(identity) {
+			const user = await requireOrgUser(db, identity, env, deps);
+			return (await db.prepare(`SELECT p.*, pm.role FROM parks p
+        JOIN park_members pm ON pm.park_id = p.id
+        WHERE pm.user_id = ? AND pm.member_status = 'active'
+        ORDER BY p.created_at, p.name`).bind(user.id).all()).results.map(parkShape);
+		},
+		async create(identity, body) {
+			const user = await requireOrgUser(db, identity, env, deps, ["org_admin"]);
+			const input = validatePark(body);
+			const parkId = deps.id();
+			const memberId = deps.id();
+			const auditId = deps.id();
+			const timestamp = deps.now();
+			await db.batch([
+				db.prepare(`INSERT INTO parks
+          (id, name, region, park_type, leading_industries, baseline_year, target_year, application_direction, status, created_by, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)`).bind(parkId, input.name, input.region, input.parkType, JSON.stringify(input.leadingIndustries), input.baselineYear, input.targetYear, input.applicationDirection, user.id, timestamp, timestamp),
+				db.prepare(`INSERT INTO park_members
+          (id, park_id, user_id, email, role, member_status, created_at, updated_at)
+          VALUES (?, ?, ?, ?, 'admin', 'active', ?, ?)`).bind(memberId, parkId, user.id, user.email, timestamp, timestamp),
+				db.prepare(`INSERT INTO audit_logs
+          (id, park_id, user_id, action, object_type, object_id, result, summary, created_at)
+          VALUES (?, ?, ?, 'park.create', 'park', ?, 'succeeded', ?, ?)`).bind(auditId, parkId, user.id, parkId, input.name, timestamp)
+			]);
+			return this.get(identity, parkId);
+		},
+		async get(identity, parkId) {
+			const member = await requireParkRole(db, parkId, await requireOrgUser(db, identity, env, deps));
+			const park = await db.prepare("SELECT * FROM parks WHERE id = ?").bind(parkId).first();
+			if (!park) throw new WorkspaceError("PARK_NOT_FOUND", "未找到该园区。", 404);
+			return parkShape({
+				...park,
+				role: member.role
+			});
+		},
+		async update(identity, parkId, body) {
+			const user = await requireOrgUser(db, identity, env, deps);
+			await requireParkRole(db, parkId, user, EDIT_ROLES);
+			const current = await db.prepare("SELECT * FROM parks WHERE id = ?").bind(parkId).first();
+			if (!current) throw new WorkspaceError("PARK_NOT_FOUND", "未找到该园区。", 404);
+			const input = validatePark(body, current);
+			await db.prepare(`UPDATE parks SET name = ?, region = ?, park_type = ?, leading_industries = ?, baseline_year = ?, target_year = ?, application_direction = ?, updated_at = ? WHERE id = ?`).bind(input.name, input.region, input.parkType, JSON.stringify(input.leadingIndustries), input.baselineYear, input.targetYear, input.applicationDirection, deps.now(), parkId).run();
+			await audit(db, deps, {
+				parkId,
+				userId: user.id,
+				action: "park.update",
+				objectType: "park",
+				objectId: parkId
+			});
+			return this.get(identity, parkId);
+		},
+		async listMembers(identity, parkId) {
+			await requireParkRole(db, parkId, await requireOrgUser(db, identity, env, deps));
+			return (await db.prepare(`SELECT id, email, role, member_status FROM park_members WHERE park_id = ? ORDER BY created_at, email`).bind(parkId).all()).results.map((row) => ({
+				id: row.id,
+				email: row.email,
+				role: row.role,
+				status: row.member_status
+			}));
+		},
+		async inviteMember(identity, parkId, body) {
+			const actor = await requireOrgUser(db, identity, env, deps);
+			await requireParkRole(db, parkId, actor, ["admin"]);
+			const email = cleanEmail(body.email);
+			if (!PARK_ROLES.includes(body.role)) throw new WorkspaceError("VALIDATION_FAILED", "提交内容不符合要求。", 422, { role: "请选择有效项目角色。" });
+			let user = await db.prepare("SELECT * FROM workspace_users WHERE email = ?").bind(email).first();
+			const timestamp = deps.now();
+			if (!user) {
+				const userId = deps.id();
+				await db.prepare(`INSERT INTO workspace_users
+          (id, email, org_role, invitation_status, invited_by, created_at, updated_at)
+          VALUES (?, ?, 'org_member', 'invited', ?, ?, ?)`).bind(userId, email, actor.id, timestamp, timestamp).run();
+				user = await db.prepare("SELECT * FROM workspace_users WHERE id = ?").bind(userId).first();
+			}
+			const memberId = deps.id();
+			await db.prepare(`INSERT INTO park_members
+        (id, park_id, user_id, email, role, member_status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(memberId, parkId, user.sites_user_id ? user.id : null, email, body.role, user.sites_user_id ? "active" : "invited", timestamp, timestamp).run();
+			await audit(db, deps, {
+				parkId,
+				userId: actor.id,
+				action: "member.invite",
+				objectType: "park_member",
+				objectId: memberId
+			});
+			return {
+				id: memberId,
+				email,
+				role: body.role,
+				status: user.sites_user_id ? "active" : "invited"
+			};
+		},
+		async updateMember(identity, parkId, memberId, body) {
+			const actor = await requireOrgUser(db, identity, env, deps);
+			await requireParkRole(db, parkId, actor, ["admin"]);
+			if (!PARK_ROLES.includes(body.role)) throw new WorkspaceError("VALIDATION_FAILED", "提交内容不符合要求。", 422, { role: "请选择有效项目角色。" });
+			if (!(await db.prepare("UPDATE park_members SET role = ?, updated_at = ? WHERE id = ? AND park_id = ?").bind(body.role, deps.now(), memberId, parkId).run()).meta.changes) throw new WorkspaceError("MEMBER_NOT_FOUND", "未找到该成员。", 404);
+			await audit(db, deps, {
+				parkId,
+				userId: actor.id,
+				action: "member.update",
+				objectType: "park_member",
+				objectId: memberId
+			});
+			return this.listMembers(identity, parkId).then((members) => members.find((member) => member.id === memberId));
+		}
+	};
+}
+//#endregion
+//#region server/workspace/router.mjs
+var defaultDeps = {
+	id: () => crypto.randomUUID(),
+	now: () => (/* @__PURE__ */ new Date()).toISOString()
+};
+function createWorkspaceRouter(deps = {}) {
+	const runtimeDeps = {
+		...defaultDeps,
+		...deps
+	};
+	return { async handle(request, env = {}) {
+		const url = new URL(request.url);
+		if (!(url.pathname === "/api/auth/me" || url.pathname.startsWith("/api/workspace/"))) return null;
+		try {
+			if (!env.DB || !env.FILES) throw new WorkspaceError("WORKSPACE_UNAVAILABLE", "项目工作台存储服务暂时不可用。", 503);
+			await ensureSchema(env.DB);
+			const identity = getTrustedIdentity(request, env);
+			const service = createParkService({
+				db: env.DB,
+				env,
+				deps: runtimeDeps
+			});
+			if (request.method === "GET" && url.pathname === "/api/auth/me") return workspaceJson({ user: await service.me(identity) });
+			if (url.pathname === "/api/workspace/parks") {
+				if (request.method === "GET") return workspaceJson({ parks: await service.list(identity) });
+				if (request.method === "POST") return workspaceJson({ park: await service.create(identity, await readWorkspaceJson(request)) }, 201);
+			}
+			const memberMatch = url.pathname.match(/^\/api\/workspace\/parks\/([^/]+)\/members(?:\/([^/]+))?$/);
+			if (memberMatch) {
+				const parkId = decodeURIComponent(memberMatch[1]);
+				const memberId = memberMatch[2] ? decodeURIComponent(memberMatch[2]) : null;
+				if (request.method === "GET" && !memberId) return workspaceJson({ members: await service.listMembers(identity, parkId) });
+				if (request.method === "POST" && !memberId) return workspaceJson({ member: await service.inviteMember(identity, parkId, await readWorkspaceJson(request)) }, 201);
+				if (request.method === "PATCH" && memberId) return workspaceJson({ member: await service.updateMember(identity, parkId, memberId, await readWorkspaceJson(request)) });
+			}
+			const parkMatch = url.pathname.match(/^\/api\/workspace\/parks\/([^/]+)$/);
+			if (parkMatch) {
+				const parkId = decodeURIComponent(parkMatch[1]);
+				if (request.method === "GET") return workspaceJson({ park: await service.get(identity, parkId) });
+				if (request.method === "PATCH") return workspaceJson({ park: await service.update(identity, parkId, await readWorkspaceJson(request)) });
+			}
+			return workspaceJson({
+				code: "NOT_FOUND",
+				message: "接口不存在。"
+			}, 404);
+		} catch (error) {
+			return workspaceErrorResponse(error);
+		}
+	} };
+}
+//#endregion
 //#region server/worker.mjs
 var SYSTEM_PROMPT = `你是零碳园区政策与项目咨询助手。只能使用用户消息中提供的政策证据和园区数据回答。
 要求：
@@ -1175,14 +1548,17 @@ async function answerQuestion({ question, evidence, parkContext, env, fetchImpl 
 		citations: evidence.filter((item) => citedIds.includes(item.evidenceId))
 	};
 }
-function createWorkerHandler({ catalog: policyCatalog = catalog_default, index: policyIndex = policies_default, fetchImpl = fetch } = {}) {
+function createWorkerHandler({ catalog: policyCatalog = catalog_default, index: policyIndex = policies_default, fetchImpl = fetch, workspaceDeps } = {}) {
 	const repository = createPolicySearch({
 		catalog: policyCatalog,
 		index: policyIndex
 	});
+	const workspaceRouter = createWorkspaceRouter(workspaceDeps);
 	return async function handle(request, env = {}) {
 		const url = new URL(request.url);
 		try {
+			const workspaceResponse = await workspaceRouter.handle(request, env);
+			if (workspaceResponse) return workspaceResponse;
 			if (request.method === "GET" && url.pathname === "/api/health") return json({
 				ok: true,
 				policyDocuments: repository.listDocuments().length

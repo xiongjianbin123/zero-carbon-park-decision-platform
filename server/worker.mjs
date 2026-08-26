@@ -1,6 +1,7 @@
 import catalog from '../public/policies/catalog.json' with { type: 'json' }
 import index from '../public/policies/index.json' with { type: 'json' }
 import { createPolicySearch } from './policySearch.mjs'
+import { createWorkspaceRouter } from './workspace/router.mjs'
 
 const SYSTEM_PROMPT = `你是零碳园区政策与项目咨询助手。只能使用用户消息中提供的政策证据和园区数据回答。
 要求：
@@ -79,12 +80,15 @@ async function answerQuestion({ question, evidence, parkContext, env, fetchImpl 
   return { answer, citations: evidence.filter((item) => citedIds.includes(item.evidenceId)) }
 }
 
-export function createWorkerHandler({ catalog: policyCatalog = catalog, index: policyIndex = index, fetchImpl = fetch } = {}) {
+export function createWorkerHandler({ catalog: policyCatalog = catalog, index: policyIndex = index, fetchImpl = fetch, workspaceDeps } = {}) {
   const repository = createPolicySearch({ catalog: policyCatalog, index: policyIndex })
+  const workspaceRouter = createWorkspaceRouter(workspaceDeps)
 
   return async function handle(request, env = {}) {
     const url = new URL(request.url)
     try {
+      const workspaceResponse = await workspaceRouter.handle(request, env)
+      if (workspaceResponse) return workspaceResponse
       if (request.method === 'GET' && url.pathname === '/api/health') {
         return json({ ok: true, policyDocuments: repository.listDocuments().length })
       }
