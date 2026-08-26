@@ -1300,7 +1300,7 @@ function validatePark(body, current = {}) {
 		})
 	};
 }
-async function audit$1(db, deps, { parkId, userId, action, objectType, objectId, summary = "" }) {
+async function audit$2(db, deps, { parkId, userId, action, objectType, objectId, summary = "" }) {
 	await db.prepare(`INSERT INTO audit_logs (id, park_id, user_id, action, object_type, object_id, result, summary, created_at)
     VALUES (?, ?, ?, ?, ?, ?, 'succeeded', ?, ?)`).bind(deps.id(), parkId, userId, action, objectType, objectId, summary.slice(0, 300), deps.now()).run();
 }
@@ -1357,7 +1357,7 @@ function createParkService({ db, env, deps }) {
 			if (!current) throw new WorkspaceError("PARK_NOT_FOUND", "未找到该园区。", 404);
 			const input = validatePark(body, current);
 			await db.prepare(`UPDATE parks SET name = ?, region = ?, park_type = ?, leading_industries = ?, baseline_year = ?, target_year = ?, application_direction = ?, updated_at = ? WHERE id = ?`).bind(input.name, input.region, input.parkType, JSON.stringify(input.leadingIndustries), input.baselineYear, input.targetYear, input.applicationDirection, deps.now(), parkId).run();
-			await audit$1(db, deps, {
+			await audit$2(db, deps, {
 				parkId,
 				userId: user.id,
 				action: "park.update",
@@ -1393,7 +1393,7 @@ function createParkService({ db, env, deps }) {
 			await db.prepare(`INSERT INTO park_members
         (id, park_id, user_id, email, role, member_status, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(memberId, parkId, user.sites_user_id ? user.id : null, email, body.role, user.sites_user_id ? "active" : "invited", timestamp, timestamp).run();
-			await audit$1(db, deps, {
+			await audit$2(db, deps, {
 				parkId,
 				userId: actor.id,
 				action: "member.invite",
@@ -1412,7 +1412,7 @@ function createParkService({ db, env, deps }) {
 			await requireParkRole(db, parkId, actor, ["admin"]);
 			if (!PARK_ROLES.includes(body.role)) throw new WorkspaceError("VALIDATION_FAILED", "提交内容不符合要求。", 422, { role: "请选择有效项目角色。" });
 			if (!(await db.prepare("UPDATE park_members SET role = ?, updated_at = ? WHERE id = ? AND park_id = ?").bind(body.role, deps.now(), memberId, parkId).run()).meta.changes) throw new WorkspaceError("MEMBER_NOT_FOUND", "未找到该成员。", 404);
-			await audit$1(db, deps, {
+			await audit$2(db, deps, {
 				parkId,
 				userId: actor.id,
 				action: "member.update",
@@ -25034,14 +25034,14 @@ var IMPORT_KINDS = /* @__PURE__ */ new Set([
 	"enterprises",
 	"projects"
 ]);
-var WRITE_ROLES$1 = [
+var WRITE_ROLES$2 = [
 	"admin",
 	"manager",
 	"specialist"
 ];
-var MAX_FILE_BYTES = 10485760;
+var MAX_FILE_BYTES$1 = 10485760;
 var BATCH_SIZE = 400;
-function safeFilename(filename) {
+function safeFilename$1(filename) {
 	return String(filename || "import").normalize("NFKC").replace(/[\\/\u0000-\u001f\u007f]+/g, "-").replace(/\s+/g, " ").trim().slice(0, 160) || "import";
 }
 function importShape(row) {
@@ -25059,7 +25059,7 @@ function importShape(row) {
 		completedAt: row.completed_at
 	};
 }
-async function sha256Hex(bytes) {
+async function sha256Hex$1(bytes) {
 	const digest = await crypto.subtle.digest("SHA-256", bytes);
 	return [...new Uint8Array(digest)].map((value) => value.toString(16).padStart(2, "0")).join("");
 }
@@ -25079,7 +25079,7 @@ async function readImportForm(request) {
 	const file = form.get("file");
 	if (!IMPORT_KINDS.has(kind)) throw new WorkspaceError("INVALID_IMPORT_KIND", "请选择有效导入模板。", 422);
 	if (!(file instanceof File)) throw new WorkspaceError("FILE_REQUIRED", "请选择要导入的 XLSX 或 CSV 文件。", 422);
-	if (file.size > MAX_FILE_BYTES) throw new WorkspaceError("FILE_TOO_LARGE", "单文件不能超过 10 MB。", 413);
+	if (file.size > MAX_FILE_BYTES$1) throw new WorkspaceError("FILE_TOO_LARGE", "单文件不能超过 10 MB。", 413);
 	if (!/\.(xlsx|csv)$/i.test(file.name)) throw new WorkspaceError("INVALID_FILE_TYPE", "仅支持 XLSX 或 CSV 文件。", 422);
 	return {
 		kind,
@@ -25109,7 +25109,7 @@ async function deleteNormalizedRows(db, importId) {
 		"park_projects"
 	]) await db.prepare(`DELETE FROM ${table} WHERE import_id = ?`).bind(importId).run();
 }
-async function audit(db, deps, parkId, userId, importId, result, summary) {
+async function audit$1(db, deps, parkId, userId, importId, result, summary) {
 	await db.prepare(`INSERT INTO audit_logs
     (id, park_id, user_id, action, object_type, object_id, result, summary, created_at)
     VALUES (?, ?, ?, 'import.commit', 'import', ?, ?, ?, ?)`).bind(deps.id(), parkId, userId, importId, result, summary.slice(0, 300), deps.now()).run();
@@ -25122,13 +25122,13 @@ function createImportService({ db, files, env, deps }) {
 		},
 		async commit(identity, parkId, request) {
 			const user = await requireOrgUser(db, identity, env, deps);
-			await requireParkRole(db, parkId, user, WRITE_ROLES$1);
+			await requireParkRole(db, parkId, user, WRITE_ROLES$2);
 			const importId = deps.id();
 			let form;
 			try {
 				form = await readImportForm(request);
 			} catch (error) {
-				await audit(db, deps, parkId, user.id, importId, "failed", "导入请求校验失败");
+				await audit$1(db, deps, parkId, user.id, importId, "failed", "导入请求校验失败");
 				throw error;
 			}
 			const { kind, file, metadata } = form;
@@ -25137,22 +25137,22 @@ function createImportService({ db, files, env, deps }) {
 			try {
 				preview = parseWorkbookBytes(bytes, kind);
 			} catch {
-				await audit(db, deps, parkId, user.id, importId, "failed", "导入文件解析失败");
+				await audit$1(db, deps, parkId, user.id, importId, "failed", "导入文件解析失败");
 				throw new WorkspaceError("IMPORT_PARSE_FAILED", "文件无法按所选模板读取。", 422);
 			}
 			if (!preview.normalizedRows.length || preview.rowErrors.length) {
-				await audit(db, deps, parkId, user.id, importId, "failed", `导入数据校验失败:${preview.rowErrors.length}`);
+				await audit$1(db, deps, parkId, user.id, importId, "failed", `导入数据校验失败:${preview.rowErrors.length}`);
 				throw new WorkspaceError("IMPORT_VALIDATION_FAILED", "文件中存在未通过校验的数据。", 422, { rows: preview.rowErrors.slice(0, 100) });
 			}
-			const digest = await sha256Hex(bytes);
+			const digest = await sha256Hex$1(bytes);
 			const duplicate = await db.prepare(`SELECT * FROM imports
         WHERE park_id = ? AND import_type = ? AND file_digest = ? AND status = 'succeeded'`).bind(parkId, kind, digest).first();
 			if (duplicate && metadata.replaceImportId !== duplicate.id) {
-				await audit(db, deps, parkId, user.id, importId, "failed", "重复导入未确认替换");
+				await audit$1(db, deps, parkId, user.id, importId, "failed", "重复导入未确认替换");
 				throw new WorkspaceError("DUPLICATE_IMPORT", "相同文件已经导入，请明确选择替换或取消。", 409);
 			}
 			const timestamp = deps.now();
-			const r2Key = `parks/${parkId}/imports/${importId}/${safeFilename(file.name)}`;
+			const r2Key = `parks/${parkId}/imports/${importId}/${safeFilename$1(file.name)}`;
 			let pendingCreated = false;
 			let r2Created = false;
 			try {
@@ -25184,13 +25184,13 @@ function createImportService({ db, files, env, deps }) {
 					await deleteNormalizedRows(db, duplicate.id);
 					await files.delete(duplicate.r2_key);
 				}
-				await audit(db, deps, parkId, user.id, importId, "succeeded", `${kind}:${preview.normalizedRows.length}`);
+				await audit$1(db, deps, parkId, user.id, importId, "succeeded", `${kind}:${preview.normalizedRows.length}`);
 				return importShape(await db.prepare("SELECT * FROM imports WHERE id = ? AND park_id = ?").bind(importId, parkId).first());
 			} catch (error) {
 				await deleteNormalizedRows(db, importId);
 				if (pendingCreated) await db.prepare("DELETE FROM imports WHERE id = ? AND park_id = ?").bind(importId, parkId).run();
 				if (r2Created) await files.delete(r2Key);
-				await audit(db, deps, parkId, user.id, importId, "failed", "导入写入失败");
+				await audit$1(db, deps, parkId, user.id, importId, "failed", "导入写入失败");
 				if (error instanceof WorkspaceError) throw error;
 				throw new WorkspaceError("IMPORT_COMMIT_FAILED", "导入未完成，已撤销本次写入。", 500);
 			}
@@ -25257,7 +25257,7 @@ var INDICATOR_DEFINITIONS = [
 ];
 //#endregion
 //#region server/workspace/diagnosis.mjs
-var WRITE_ROLES = [
+var WRITE_ROLES$1 = [
 	"admin",
 	"manager",
 	"specialist"
@@ -25395,7 +25395,7 @@ function createDiagnosisService({ db, env, deps }) {
 	return {
 		async generate(identity, parkId) {
 			const user = await requireOrgUser(db, identity, env, deps);
-			await requireParkRole(db, parkId, user, WRITE_ROLES);
+			await requireParkRole(db, parkId, user, WRITE_ROLES$1);
 			const runId = deps.id();
 			const calculatedAt = deps.now();
 			const statements = calculateIndicators(await dataForPark(db, parkId)).map((item) => db.prepare(`INSERT INTO indicator_results
@@ -25415,6 +25415,236 @@ function createDiagnosisService({ db, env, deps }) {
 		},
 		async rows(runId, parkId) {
 			return (await db.prepare(`SELECT * FROM indicator_results WHERE diagnosis_run_id = ? AND park_id = ? ORDER BY rowid`).bind(runId, parkId).all()).results;
+		}
+	};
+}
+//#endregion
+//#region server/workspace/tasks.mjs
+var TASK_STATUSES = [
+	"draft",
+	"open",
+	"in_progress",
+	"blocked",
+	"done"
+];
+var WRITE_ROLES = [
+	"admin",
+	"manager",
+	"specialist"
+];
+var MAX_FILE_BYTES = 10485760;
+var ALLOWED_FILES = /* @__PURE__ */ new Map([
+	[".xlsx", ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/octet-stream"]],
+	[".csv", [
+		"text/csv",
+		"application/vnd.ms-excel",
+		"text/plain"
+	]],
+	[".pdf", ["application/pdf"]],
+	[".png", ["image/png"]],
+	[".jpg", ["image/jpeg"]],
+	[".jpeg", ["image/jpeg"]]
+]);
+function canTransitionTask(_current, next) {
+	return TASK_STATUSES.includes(next);
+}
+function validateTaskCompletion({ evidenceCount, reviewNote }) {
+	if (evidenceCount < 1 && !String(reviewNote || "").trim()) throw new WorkspaceError("TASK_EVIDENCE_REQUIRED", "任务完成前须上传至少一份佐证材料或填写审核备注。", 422);
+}
+function cleanDate(value, field = "plannedDate") {
+	const text = typeof value === "string" ? value.trim() : "";
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(text) || Number.isNaN(Date.parse(`${text}T00:00:00Z`))) throw new WorkspaceError("VALIDATION_FAILED", "提交内容不符合要求。", 422, { [field]: "请输入有效的 YYYY-MM-DD 日期。" });
+	return text;
+}
+function cleanStatus(value) {
+	if (!TASK_STATUSES.includes(value)) throw new WorkspaceError("VALIDATION_FAILED", "提交内容不符合要求。", 422, { status: "请选择有效任务状态。" });
+	return value;
+}
+function taskShape(row) {
+	return {
+		id: row.id,
+		parkId: row.park_id,
+		sourceIndicatorId: row.source_indicator_id,
+		taskType: row.task_type,
+		title: row.title,
+		ownerName: row.owner_name,
+		plannedDate: row.planned_date,
+		status: row.status,
+		reviewNote: row.review_note,
+		evidenceCount: Number(row.evidence_count ?? 0),
+		createdAt: row.created_at,
+		updatedAt: row.updated_at
+	};
+}
+function fileShape(row) {
+	return {
+		id: row.id,
+		parkId: row.park_id,
+		ownerType: row.owner_type,
+		ownerId: row.owner_id,
+		filename: row.original_filename,
+		contentType: row.content_type,
+		size: row.file_size,
+		checksum: row.checksum,
+		validationSummary: row.validation_summary,
+		uploadedAt: row.uploaded_at
+	};
+}
+function safeFilename(filename) {
+	return String(filename || "file").normalize("NFKC").replace(/[\\/\u0000-\u001f\u007f]+/g, "-").replace(/\s+/g, " ").trim().slice(0, 160) || "file";
+}
+function extension(filename) {
+	return String(filename).toLowerCase().match(/\.[a-z0-9]+$/)?.[0] ?? "";
+}
+async function sha256Hex(bytes) {
+	const digest = await crypto.subtle.digest("SHA-256", bytes);
+	return [...new Uint8Array(digest)].map((value) => value.toString(16).padStart(2, "0")).join("");
+}
+async function audit(db, deps, { parkId, userId, action, objectType, objectId, result = "succeeded", summary = "" }) {
+	await db.prepare(`INSERT INTO audit_logs
+    (id, park_id, user_id, action, object_type, object_id, result, summary, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(deps.id(), parkId, userId, action, objectType, objectId, result, summary.slice(0, 300), deps.now()).run();
+}
+async function findTask(db, parkId, taskId) {
+	return db.prepare(`SELECT t.*, (SELECT COUNT(*) FROM files f WHERE f.park_id = t.park_id AND f.owner_type = 'task' AND f.owner_id = t.id) AS evidence_count
+    FROM tasks t WHERE t.park_id = ? AND t.id = ?`).bind(parkId, taskId).first();
+}
+function createTaskFileService({ db, files, env, deps }) {
+	return {
+		async listTasks(identity, parkId) {
+			await requireParkRole(db, parkId, await requireOrgUser(db, identity, env, deps));
+			return (await db.prepare(`SELECT t.*, (SELECT COUNT(*) FROM files f WHERE f.park_id = t.park_id AND f.owner_type = 'task' AND f.owner_id = t.id) AS evidence_count
+        FROM tasks t WHERE t.park_id = ? ORDER BY t.planned_date, t.created_at`).bind(parkId).all()).results.map(taskShape);
+		},
+		async createTask(identity, parkId, body) {
+			const user = await requireOrgUser(db, identity, env, deps);
+			await requireParkRole(db, parkId, user, WRITE_ROLES);
+			const status = cleanStatus(body.status ?? "draft");
+			const reviewNote = typeof body.reviewNote === "string" ? body.reviewNote.trim().slice(0, 2e3) : "";
+			if (status === "done") validateTaskCompletion({
+				evidenceCount: 0,
+				reviewNote
+			});
+			let sourceIndicatorId = null;
+			if (body.sourceIndicatorId) {
+				const indicator = await db.prepare("SELECT id, status FROM indicator_results WHERE id = ? AND park_id = ?").bind(body.sourceIndicatorId, parkId).first();
+				if (!indicator || !["gap", "missing_data"].includes(indicator.status)) throw new WorkspaceError("INVALID_TASK_SOURCE", "任务只能从本园区的差距或缺数指标生成。", 422);
+				sourceIndicatorId = indicator.id;
+			}
+			const id = deps.id();
+			const timestamp = deps.now();
+			await db.prepare(`INSERT INTO tasks
+        (id, park_id, source_indicator_id, task_type, title, owner_name, planned_date, status, review_note, created_by, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(id, parkId, sourceIndicatorId, cleanText(body.taskType, "taskType", { max: 80 }), cleanText(body.title, "title", { max: 200 }), cleanText(body.ownerName, "ownerName", { max: 100 }), cleanDate(body.plannedDate), status, reviewNote, user.id, timestamp, timestamp).run();
+			await audit(db, deps, {
+				parkId,
+				userId: user.id,
+				action: "task.create",
+				objectType: "task",
+				objectId: id,
+				summary: status
+			});
+			return taskShape(await findTask(db, parkId, id));
+		},
+		async updateTask(identity, parkId, taskId, body) {
+			const user = await requireOrgUser(db, identity, env, deps);
+			await requireParkRole(db, parkId, user, WRITE_ROLES);
+			const current = await findTask(db, parkId, taskId);
+			if (!current) throw new WorkspaceError("TASK_NOT_FOUND", "未找到该任务。", 404);
+			const status = body.status === void 0 ? current.status : cleanStatus(body.status);
+			if (!canTransitionTask(current.status, status)) throw new WorkspaceError("INVALID_TASK_TRANSITION", "不允许执行该任务状态变更。", 422);
+			const reviewNote = body.reviewNote === void 0 ? current.review_note : String(body.reviewNote || "").trim().slice(0, 2e3);
+			if (status === "done") validateTaskCompletion({
+				evidenceCount: Number(current.evidence_count),
+				reviewNote
+			});
+			const taskType = body.taskType === void 0 ? current.task_type : cleanText(body.taskType, "taskType", { max: 80 });
+			const title = body.title === void 0 ? current.title : cleanText(body.title, "title", { max: 200 });
+			const ownerName = body.ownerName === void 0 ? current.owner_name : cleanText(body.ownerName, "ownerName", { max: 100 });
+			const plannedDate = body.plannedDate === void 0 ? current.planned_date : cleanDate(body.plannedDate);
+			await db.prepare(`UPDATE tasks SET task_type = ?, title = ?, owner_name = ?, planned_date = ?, status = ?, review_note = ?, updated_at = ?
+        WHERE id = ? AND park_id = ?`).bind(taskType, title, ownerName, plannedDate, status, reviewNote, deps.now(), taskId, parkId).run();
+			await audit(db, deps, {
+				parkId,
+				userId: user.id,
+				action: "task.update",
+				objectType: "task",
+				objectId: taskId,
+				summary: JSON.stringify({
+					before: current.status,
+					after: status,
+					note: reviewNote.slice(0, 120)
+				})
+			});
+			return taskShape(await findTask(db, parkId, taskId));
+		},
+		async uploadFile(identity, parkId, request) {
+			const user = await requireOrgUser(db, identity, env, deps);
+			await requireParkRole(db, parkId, user, WRITE_ROLES);
+			if (!request.headers.get("content-type")?.includes("multipart/form-data")) throw new WorkspaceError("INVALID_CONTENT_TYPE", "文件上传必须使用 multipart/form-data。", 415);
+			const form = await request.formData();
+			const ownerType = String(form.get("ownerType") ?? "");
+			const ownerId = String(form.get("ownerId") ?? "");
+			const file = form.get("file");
+			if (ownerType !== "task") throw new WorkspaceError("INVALID_FILE_OWNER", "P0 佐证材料必须关联任务。", 422);
+			if (!(file instanceof File)) throw new WorkspaceError("FILE_REQUIRED", "请选择佐证文件。", 422);
+			if (!await findTask(db, parkId, ownerId)) throw new WorkspaceError("TASK_NOT_FOUND", "未找到该任务。", 404);
+			if (file.size > MAX_FILE_BYTES) throw new WorkspaceError("FILE_TOO_LARGE", "单文件不能超过 10 MB。", 413);
+			const ext = extension(file.name);
+			if (!ALLOWED_FILES.has(ext) || !ALLOWED_FILES.get(ext).includes(file.type || "application/octet-stream")) throw new WorkspaceError("INVALID_FILE_TYPE", "仅支持 XLSX、CSV、PDF、PNG 和 JPEG 文件。", 422);
+			const id = deps.id();
+			const timestamp = deps.now();
+			const r2Key = `parks/${parkId}/evidence/${id}/${safeFilename(file.name)}`;
+			const bytes = await file.arrayBuffer();
+			const checksum = await sha256Hex(bytes);
+			let uploaded = false;
+			try {
+				await files.put(r2Key, bytes, {
+					httpMetadata: { contentType: file.type },
+					customMetadata: {
+						parkId,
+						fileId: id
+					}
+				});
+				uploaded = true;
+				await db.prepare(`INSERT INTO files
+          (id, park_id, owner_type, owner_id, r2_key, original_filename, content_type, file_size, checksum, validation_summary, uploaded_by, uploaded_at)
+          VALUES (?, ?, 'task', ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(id, parkId, ownerId, r2Key, file.name.slice(0, 240), file.type, file.size, checksum, "文件类型与大小校验通过", user.id, timestamp).run();
+			} catch {
+				if (uploaded) await files.delete(r2Key);
+				await audit(db, deps, {
+					parkId,
+					userId: user.id,
+					action: "file.upload",
+					objectType: "file",
+					objectId: id,
+					result: "failed",
+					summary: "文件元数据写入失败"
+				});
+				throw new WorkspaceError("FILE_COMMIT_FAILED", "文件上传未完成，已撤销本次写入。", 500);
+			}
+			await audit(db, deps, {
+				parkId,
+				userId: user.id,
+				action: "file.upload",
+				objectType: "file",
+				objectId: id,
+				summary: `${ownerType}:${ownerId}`
+			});
+			return fileShape(await db.prepare("SELECT * FROM files WHERE id = ? AND park_id = ?").bind(id, parkId).first());
+		},
+		async downloadFile(identity, parkId, fileId) {
+			await requireParkRole(db, parkId, await requireOrgUser(db, identity, env, deps));
+			const metadata = await db.prepare("SELECT * FROM files WHERE id = ? AND park_id = ?").bind(fileId, parkId).first();
+			if (!metadata) throw new WorkspaceError("FILE_NOT_FOUND", "未找到该文件。", 404);
+			const object = await files.get(metadata.r2_key);
+			if (!object) throw new WorkspaceError("FILE_CONTENT_NOT_FOUND", "文件内容暂时不可用。", 404);
+			return new Response(object.body, { headers: {
+				"content-type": metadata.content_type,
+				"content-length": String(metadata.file_size),
+				"content-disposition": `attachment; filename="download${extension(metadata.original_filename)}"; filename*=UTF-8''${encodeURIComponent(metadata.original_filename)}`,
+				"cache-control": "private, no-store"
+			} });
 		}
 	};
 }
@@ -25452,6 +25682,12 @@ function createWorkspaceRouter(deps = {}) {
 				env,
 				deps: runtimeDeps
 			});
+			const taskFiles = createTaskFileService({
+				db: env.DB,
+				files: env.FILES,
+				env,
+				deps: runtimeDeps
+			});
 			if (request.method === "GET" && url.pathname === "/api/auth/me") return workspaceJson({ user: await service.me(identity) });
 			if (url.pathname === "/api/workspace/parks") {
 				if (request.method === "GET") return workspaceJson({ parks: await service.list(identity) });
@@ -25476,6 +25712,21 @@ function createWorkspaceRouter(deps = {}) {
 				const parkId = decodeURIComponent(diagnosisMatch[1]);
 				if (request.method === "POST" && !diagnosisMatch[2]) return workspaceJson({ diagnosis: await diagnosis.generate(identity, parkId) }, 201);
 				if (request.method === "GET" && diagnosisMatch[2] === "latest") return workspaceJson({ diagnosis: await diagnosis.latest(identity, parkId) });
+			}
+			const taskMatch = url.pathname.match(/^\/api\/workspace\/parks\/([^/]+)\/tasks(?:\/([^/]+))?$/);
+			if (taskMatch) {
+				const parkId = decodeURIComponent(taskMatch[1]);
+				const taskId = taskMatch[2] ? decodeURIComponent(taskMatch[2]) : null;
+				if (request.method === "GET" && !taskId) return workspaceJson({ tasks: await taskFiles.listTasks(identity, parkId) });
+				if (request.method === "POST" && !taskId) return workspaceJson({ task: await taskFiles.createTask(identity, parkId, await readWorkspaceJson(request)) }, 201);
+				if (request.method === "PATCH" && taskId) return workspaceJson({ task: await taskFiles.updateTask(identity, parkId, taskId, await readWorkspaceJson(request)) });
+			}
+			const fileMatch = url.pathname.match(/^\/api\/workspace\/parks\/([^/]+)\/files(?:\/([^/]+))?$/);
+			if (fileMatch) {
+				const parkId = decodeURIComponent(fileMatch[1]);
+				const fileId = fileMatch[2] ? decodeURIComponent(fileMatch[2]) : null;
+				if (request.method === "POST" && !fileId) return workspaceJson({ file: await taskFiles.uploadFile(identity, parkId, request) }, 201);
+				if (request.method === "GET" && fileId) return taskFiles.downloadFile(identity, parkId, fileId);
 			}
 			const parkMatch = url.pathname.match(/^\/api\/workspace\/parks\/([^/]+)$/);
 			if (parkMatch) {

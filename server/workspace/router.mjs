@@ -4,6 +4,7 @@ import { readWorkspaceJson, workspaceErrorResponse, workspaceJson, WorkspaceErro
 import { createParkService } from './parks.mjs'
 import { createImportService } from './imports.mjs'
 import { createDiagnosisService } from './diagnosis.mjs'
+import { createTaskFileService } from './tasks.mjs'
 
 const defaultDeps = {
   id: () => crypto.randomUUID(),
@@ -26,6 +27,7 @@ export function createWorkspaceRouter(deps = {}) {
         const service = createParkService({ db: env.DB, env, deps: runtimeDeps })
         const imports = createImportService({ db: env.DB, files: env.FILES, env, deps: runtimeDeps })
         const diagnosis = createDiagnosisService({ db: env.DB, env, deps: runtimeDeps })
+        const taskFiles = createTaskFileService({ db: env.DB, files: env.FILES, env, deps: runtimeDeps })
 
         if (request.method === 'GET' && url.pathname === '/api/auth/me') {
           return workspaceJson({ user: await service.me(identity) })
@@ -56,6 +58,23 @@ export function createWorkspaceRouter(deps = {}) {
           const parkId = decodeURIComponent(diagnosisMatch[1])
           if (request.method === 'POST' && !diagnosisMatch[2]) return workspaceJson({ diagnosis: await diagnosis.generate(identity, parkId) }, 201)
           if (request.method === 'GET' && diagnosisMatch[2] === 'latest') return workspaceJson({ diagnosis: await diagnosis.latest(identity, parkId) })
+        }
+
+        const taskMatch = url.pathname.match(/^\/api\/workspace\/parks\/([^/]+)\/tasks(?:\/([^/]+))?$/)
+        if (taskMatch) {
+          const parkId = decodeURIComponent(taskMatch[1])
+          const taskId = taskMatch[2] ? decodeURIComponent(taskMatch[2]) : null
+          if (request.method === 'GET' && !taskId) return workspaceJson({ tasks: await taskFiles.listTasks(identity, parkId) })
+          if (request.method === 'POST' && !taskId) return workspaceJson({ task: await taskFiles.createTask(identity, parkId, await readWorkspaceJson(request)) }, 201)
+          if (request.method === 'PATCH' && taskId) return workspaceJson({ task: await taskFiles.updateTask(identity, parkId, taskId, await readWorkspaceJson(request)) })
+        }
+
+        const fileMatch = url.pathname.match(/^\/api\/workspace\/parks\/([^/]+)\/files(?:\/([^/]+))?$/)
+        if (fileMatch) {
+          const parkId = decodeURIComponent(fileMatch[1])
+          const fileId = fileMatch[2] ? decodeURIComponent(fileMatch[2]) : null
+          if (request.method === 'POST' && !fileId) return workspaceJson({ file: await taskFiles.uploadFile(identity, parkId, request) }, 201)
+          if (request.method === 'GET' && fileId) return taskFiles.downloadFile(identity, parkId, fileId)
         }
 
         const parkMatch = url.pathname.match(/^\/api\/workspace\/parks\/([^/]+)$/)

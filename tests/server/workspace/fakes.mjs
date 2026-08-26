@@ -2,27 +2,31 @@ import { readFileSync } from 'node:fs'
 import { DatabaseSync } from 'node:sqlite'
 
 class FakeD1Statement {
-  constructor(database, sql, params = []) {
-    this.database = database
+  constructor(owner, sql, params = []) {
+    this.owner = owner
     this.sql = sql
     this.params = params
   }
 
   bind(...params) {
-    return new FakeD1Statement(this.database, this.sql, params)
+    return new FakeD1Statement(this.owner, this.sql, params)
   }
 
   async first(column) {
-    const row = this.database.prepare(this.sql).get(...this.params) ?? null
+    const row = this.owner.database.prepare(this.sql).get(...this.params) ?? null
     return column && row ? row[column] : row
   }
 
   async all() {
-    return { results: this.database.prepare(this.sql).all(...this.params), success: true }
+    return { results: this.owner.database.prepare(this.sql).all(...this.params), success: true }
   }
 
   async run() {
-    const result = this.database.prepare(this.sql).run(...this.params)
+    if (this.owner.failNextRunMatching?.test(this.sql)) {
+      this.owner.failNextRunMatching = null
+      throw new Error('injected D1 statement failure')
+    }
+    const result = this.owner.database.prepare(this.sql).run(...this.params)
     return { success: true, meta: { changes: result.changes, last_row_id: result.lastInsertRowid } }
   }
 }
@@ -33,10 +37,11 @@ export class FakeD1 {
     this.database.exec('PRAGMA foreign_keys = ON')
     this.database.exec(readFileSync(new URL('../../../drizzle/0001_project_workbench.sql', import.meta.url), 'utf8'))
     this.failNextBatch = false
+    this.failNextRunMatching = null
   }
 
   prepare(sql) {
-    return new FakeD1Statement(this.database, sql)
+    return new FakeD1Statement(this, sql)
   }
 
   async batch(statements) {
