@@ -3,6 +3,7 @@ import { getTrustedIdentity } from './auth.mjs'
 import { readWorkspaceJson, workspaceErrorResponse, workspaceJson, WorkspaceError } from './contracts.mjs'
 import { createParkService } from './parks.mjs'
 import { createImportService } from './imports.mjs'
+import { createDiagnosisService } from './diagnosis.mjs'
 
 const defaultDeps = {
   id: () => crypto.randomUUID(),
@@ -24,6 +25,7 @@ export function createWorkspaceRouter(deps = {}) {
         const identity = getTrustedIdentity(request, env)
         const service = createParkService({ db: env.DB, env, deps: runtimeDeps })
         const imports = createImportService({ db: env.DB, files: env.FILES, env, deps: runtimeDeps })
+        const diagnosis = createDiagnosisService({ db: env.DB, env, deps: runtimeDeps })
 
         if (request.method === 'GET' && url.pathname === '/api/auth/me') {
           return workspaceJson({ user: await service.me(identity) })
@@ -47,6 +49,13 @@ export function createWorkspaceRouter(deps = {}) {
           const parkId = decodeURIComponent(importMatch[1])
           if (request.method === 'GET') return workspaceJson({ imports: await imports.list(identity, parkId) })
           if (request.method === 'POST') return workspaceJson({ importBatch: await imports.commit(identity, parkId, request) }, 201)
+        }
+
+        const diagnosisMatch = url.pathname.match(/^\/api\/workspace\/parks\/([^/]+)\/diagnosis(?:\/(latest))?$/)
+        if (diagnosisMatch) {
+          const parkId = decodeURIComponent(diagnosisMatch[1])
+          if (request.method === 'POST' && !diagnosisMatch[2]) return workspaceJson({ diagnosis: await diagnosis.generate(identity, parkId) }, 201)
+          if (request.method === 'GET' && diagnosisMatch[2] === 'latest') return workspaceJson({ diagnosis: await diagnosis.latest(identity, parkId) })
         }
 
         const parkMatch = url.pathname.match(/^\/api\/workspace\/parks\/([^/]+)$/)
