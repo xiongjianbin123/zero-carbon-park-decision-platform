@@ -2,6 +2,7 @@ import { ensureSchema } from './db.mjs'
 import { getTrustedIdentity } from './auth.mjs'
 import { readWorkspaceJson, workspaceErrorResponse, workspaceJson, WorkspaceError } from './contracts.mjs'
 import { createParkService } from './parks.mjs'
+import { createImportService } from './imports.mjs'
 
 const defaultDeps = {
   id: () => crypto.randomUUID(),
@@ -22,6 +23,7 @@ export function createWorkspaceRouter(deps = {}) {
         await ensureSchema(env.DB)
         const identity = getTrustedIdentity(request, env)
         const service = createParkService({ db: env.DB, env, deps: runtimeDeps })
+        const imports = createImportService({ db: env.DB, files: env.FILES, env, deps: runtimeDeps })
 
         if (request.method === 'GET' && url.pathname === '/api/auth/me') {
           return workspaceJson({ user: await service.me(identity) })
@@ -40,6 +42,13 @@ export function createWorkspaceRouter(deps = {}) {
           if (request.method === 'PATCH' && memberId) return workspaceJson({ member: await service.updateMember(identity, parkId, memberId, await readWorkspaceJson(request)) })
         }
 
+        const importMatch = url.pathname.match(/^\/api\/workspace\/parks\/([^/]+)\/imports$/)
+        if (importMatch) {
+          const parkId = decodeURIComponent(importMatch[1])
+          if (request.method === 'GET') return workspaceJson({ imports: await imports.list(identity, parkId) })
+          if (request.method === 'POST') return workspaceJson({ importBatch: await imports.commit(identity, parkId, request) }, 201)
+        }
+
         const parkMatch = url.pathname.match(/^\/api\/workspace\/parks\/([^/]+)$/)
         if (parkMatch) {
           const parkId = decodeURIComponent(parkMatch[1])
@@ -54,4 +63,3 @@ export function createWorkspaceRouter(deps = {}) {
     },
   }
 }
-

@@ -222,16 +222,23 @@ export async function parseImportFile(file: File, kind: ImportKind): Promise<Imp
   if (file.size > MAX_FILE_BYTES) throw new Error('单文件不能超过 10 MB。')
   if (!/\.(xlsx|csv)$/i.test(file.name)) throw new Error('仅支持 XLSX 或 CSV 文件。')
   const bytes = await file.arrayBuffer()
-  const workbook = XLSX.read(bytes, { type: 'array', cellDates: true, dense: false })
+  const preview = parseWorkbookBytes(bytes, kind)
+  preview.digest = await sha256Hex(bytes)
+  preview.filename = file.name
+  return preview
+}
+
+export function parseWorkbookBytes(bytes: ArrayBuffer, kind: ImportKind): ImportPreview {
+  const prefix = new Uint8Array(bytes, 0, Math.min(2, bytes.byteLength))
+  const isZipWorkbook = prefix[0] === 0x50 && prefix[1] === 0x4b
+  const workbook = isZipWorkbook
+    ? XLSX.read(bytes, { type: 'array', cellDates: true, dense: false })
+    : XLSX.read(new TextDecoder('utf-8').decode(bytes), { type: 'string', raw: true, cellDates: false, dense: false })
   const sheet = workbook.Sheets[workbook.SheetNames[0]]
   if (!sheet) throw new Error('工作簿没有可读取的数据表。')
   if (Object.values(sheet).some((cell) => typeof cell === 'object' && cell && 'f' in cell)) {
     throw new Error('导入模板不能包含公式，请粘贴为数值后重试。')
   }
   const { headers, rows } = workbookRows(sheet)
-  const preview = parseRows(kind, rows, headers)
-  preview.digest = await sha256Hex(bytes)
-  preview.filename = file.name
-  return preview
+  return parseRows(kind, rows, headers)
 }
-

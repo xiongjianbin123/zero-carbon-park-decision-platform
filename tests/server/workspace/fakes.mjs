@@ -32,6 +32,7 @@ export class FakeD1 {
     this.database = new DatabaseSync(':memory:')
     this.database.exec('PRAGMA foreign_keys = ON')
     this.database.exec(readFileSync(new URL('../../../drizzle/0001_project_workbench.sql', import.meta.url), 'utf8'))
+    this.failNextBatch = false
   }
 
   prepare(sql) {
@@ -39,6 +40,10 @@ export class FakeD1 {
   }
 
   async batch(statements) {
+    if (this.failNextBatch) {
+      this.failNextBatch = false
+      throw new Error('injected D1 batch failure')
+    }
     this.database.exec('BEGIN')
     try {
       const results = []
@@ -116,4 +121,3 @@ export function jsonRequest(path, { method = 'GET', user, body, origin = 'https:
     body: body === undefined ? undefined : JSON.stringify(body),
   })
 }
-
