@@ -13,6 +13,7 @@
     "test": "vitest",
     "test:e2e": "playwright test",
     "test:server": "node --test tests/server/*.test.mjs",
+    "workspace:templates": "node scripts/build-workspace-templates.mjs",
     "policies:import": "node scripts/import-policy-documents.mjs",
     "policies:index": "node scripts/build-policy-index.mjs"
   },
@@ -20,7 +21,8 @@
     "@anthropic-ai/sdk": "^0.120.0",
     "echarts": "^5.5.1",
     "vue": "^3.5.10",
-    "vue-router": "^4.4.5"
+    "vue-router": "^4.4.5",
+    "xlsx": "npm:@e965/xlsx@^0.20.3"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.37.1",
