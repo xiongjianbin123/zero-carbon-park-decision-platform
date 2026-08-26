@@ -6,6 +6,9 @@ import PoliciesPage from '@/pages/policies/PoliciesPage.vue'
 import InvestmentPage from '@/pages/investment/InvestmentPage.vue'
 import OperationsPage from '@/pages/operations/OperationsPage.vue'
 import QaPage from '@/pages/qa/QaPage.vue'
+import WorkspaceShell from '@/components/workspace/WorkspaceShell.vue'
+import WorkspaceOverviewPage from '@/pages/workspace/WorkspaceOverviewPage.vue'
+import WorkspaceOnboardingPage from '@/pages/workspace/WorkspaceOnboardingPage.vue'
 
 export const router = createRouter({
   history: createWebHashHistory(),
@@ -19,6 +22,14 @@ export const router = createRouter({
     { path: '/operations/vpp', name: 'operations-vpp', component: OperationsPage, props: { initialView: 'vpp' } },
     { path: '/operations', name: 'operations', component: OperationsPage },
     { path: '/qa', name: 'qa', component: QaPage },
+    {
+      path: '/workspace',
+      component: WorkspaceShell,
+      children: [
+        { path: '', name: 'workspace-overview', component: WorkspaceOverviewPage },
+        { path: 'onboarding', name: 'workspace-onboarding', component: WorkspaceOnboardingPage },
+      ],
+    },
     { path: '/:pathMatch(.*)*', redirect: '/dashboard' },
   ],
   scrollBehavior: () => ({ top: 0 }),

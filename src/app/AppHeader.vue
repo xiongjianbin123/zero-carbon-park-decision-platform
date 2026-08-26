@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { parkConfig } from '@/config/park'
 import GuidedTourBar from './GuidedTourBar.vue'
 
-const navItems = [
+const route = useRoute()
+const demoNavItems = [
   { label: '园区驾驶舱', path: '/dashboard', icon: '◈' },
   { label: '零碳建设路径', path: '/roadmap', icon: '⌁' },
   { label: '全过程项目地图', path: '/projects', icon: '◇' },
@@ -11,6 +14,12 @@ const navItems = [
   { label: '能源运营', path: '/operations', icon: '⌬' },
   { label: '智能问数', path: '/qa', icon: '✦' },
 ]
+const workspaceNavItems = [
+  { label: '项目总览', path: '/workspace', icon: '◫' },
+  { label: '园区建档', path: '/workspace/onboarding', icon: '◇' },
+]
+const isWorkspace = computed(() => route.path.startsWith('/workspace'))
+const navItems = computed(() => isWorkspace.value ? workspaceNavItems : demoNavItems)
 </script>
 
 <template>
@@ -28,9 +37,11 @@ const navItems = [
       </RouterLink>
     </nav>
     <div class="park-meta">
-      <div><strong>{{ parkConfig.meta.parkName }}</strong><small>{{ parkConfig.meta.region }}</small></div>
-      <span class="demo-badge">{{ parkConfig.meta.demoLabel }}</span>
-      <GuidedTourBar />
+      <div class="mode-switch" aria-label="应用模式"><RouterLink to="/dashboard">示范驾驶舱</RouterLink><RouterLink to="/workspace">项目工作台</RouterLink></div>
+      <div v-if="!isWorkspace"><strong>{{ parkConfig.meta.parkName }}</strong><small>{{ parkConfig.meta.region }}</small></div>
+      <div v-else><strong>真实园区项目</strong><small>PROJECT DELIVERY WORKSPACE</small></div>
+      <span class="demo-badge">{{ isWorkspace ? '项目数据' : parkConfig.meta.demoLabel }}</span>
+      <GuidedTourBar v-if="!isWorkspace" />
     </div>
   </header>
 </template>
