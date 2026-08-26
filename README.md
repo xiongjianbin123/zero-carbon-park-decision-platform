@@ -1,6 +1,6 @@
 # 零碳园区全过程决策与申报咨询平台
 
-面向山西资源型工业园区转型的全过程决策与申报咨询平台。产品采用统一深蓝能源调度视觉，支持自由浏览、引导式汇报、项目与投资下钻、政策资料检索和园区智能问数。
+面向山西资源型工业园区转型的全过程决策与申报咨询平台。产品采用统一深蓝能源调度视觉，既提供可自由浏览的示范驾驶舱，也提供承载真实园区数据、诊断、任务、佐证和成果的项目工作台。
 
 ## 最快启动
 
@@ -16,11 +16,10 @@ scripts/start.command
 http://127.0.0.1:5274/#/dashboard
 ```
 
-脚本会同时启动页面和本地服务。也可从终端分别启动：
+脚本会通过 Cloudflare Vite 运行页面、Worker API、本地 D1 和 R2。也可从终端启动：
 
 ```bash
 npm install
-npm run api:dev
 npm run dev -- --host 127.0.0.1 --port 5274
 ```
 
@@ -36,6 +35,21 @@ npm run dev -- --host 127.0.0.1 --port 5274
 - `#/qa`：园区智能问数
 
 顶部“开始引导汇报”按上述顺序讲解七页；汇报过程中仍可使用顶部导航自由切换。
+
+## 真实项目工作台
+
+顶部切换到“项目工作台”，或直接打开 `#/workspace`。工作台固定提供六个页面：
+
+- `#/workspace`：当前园区总览与下一步动作
+- `#/workspace/onboarding`：园区建档
+- `#/workspace/imports`：四类固定模板下载、浏览器校验和数据导入
+- `#/workspace/diagnosis`：确定性指标诊断与差距转任务
+- `#/workspace/tasks`：任务状态、责任人、期限和佐证材料
+- `#/workspace/deliverables`：四类成果预览、生成与下载
+
+本地数据保存在 `.wrangler/` 管理的开发 D1/R2 中；公网数据由 Sites 管理的 D1/R2 保存。工作台不使用演示园区数字填充真实项目，缺少资料时显示“缺少数据”。
+
+公网工作台采用登录身份与园区成员权限双重控制：管理员、项目经理和专业人员可以写入，只读成员只能浏览；未加入成员不能读取园区名称和文件元数据。首次发布应在托管环境安全配置 `WORKSPACE_OWNER_USER_ID` 和 `WORKSPACE_OWNER_EMAIL`，后续成员按登录邮箱邀请。
 
 ## 修改演示数据
 
@@ -64,7 +78,7 @@ npm run policies:import
 npm run policies:index
 ```
 
-## 智能问数本机配置
+## 智能问数配置
 
 从 MiniMax 控制台复制 API Key 后，在 Finder 中双击：
 
@@ -73,6 +87,8 @@ scripts/configure-minimax.command
 ```
 
 根据终端提示粘贴密钥。输入内容不会显示，配置仅保存在本机已忽略的 `.env.local`，权限为仅当前用户可读写。完成后重启平台。
+
+公网密钥必须通过托管平台的加密环境变量配置，不得复制 `.env.local`。实时智能问数要求登录；匿名用户仍可浏览预置问题和政策检索。未配置公网密钥时，系统不会发起模型请求。
 
 ## 生成静态构建包
 
@@ -91,12 +107,12 @@ npm run test:server
 npm run build
 ```
 
-构建产物位于 `dist/`。本机完整部署请使用 `scripts/serve-static.command`，它会同时提供构建页面、政策检索和智能问数接口。
+构建产物位于 `dist/`。本机完整部署请使用 `scripts/serve-static.command`，它会提供构建页面、Worker API 和本地工作台存储。
 
 本机启动完整构建包：
 
 ```bash
-PORT=4174 node server/index.mjs
+scripts/serve-static.command
 ```
 
 打开 `http://127.0.0.1:4174/#/dashboard`。
@@ -127,6 +143,8 @@ npm run build
 ```
 
 浏览器验收截图保存在 `artifacts/screenshots/`。
+
+完整 P0 验收口径见 [`docs/PRODUCT-ACCEPTANCE.md`](docs/PRODUCT-ACCEPTANCE.md)。
 
 ## 环境
 

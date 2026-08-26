@@ -2,6 +2,7 @@ import catalog from '../public/policies/catalog.json' with { type: 'json' }
 import index from '../public/policies/index.json' with { type: 'json' }
 import { createPolicySearch } from './policySearch.mjs'
 import { createWorkspaceRouter } from './workspace/router.mjs'
+import { getTrustedIdentity } from './workspace/auth.mjs'
 
 const SYSTEM_PROMPT = `你是零碳园区政策与项目咨询助手。只能使用用户消息中提供的政策证据和园区数据回答。
 要求：
@@ -100,6 +101,7 @@ export function createWorkerHandler({ catalog: policyCatalog = catalog, index: p
         return json({ results: repository.search(cleanQuestion(body.query), body.filters ?? {}, body.limit ?? 6) })
       }
       if (request.method === 'POST' && url.pathname === '/api/qa') {
+        getTrustedIdentity(request, env)
         const body = await readJson(request)
         const question = cleanQuestion(body.question)
         const evidence = repository.search(question, body.filters ?? {}, 6)

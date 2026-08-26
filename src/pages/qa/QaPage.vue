@@ -43,6 +43,8 @@ function submitQuestion() {
     .catch((error: { code?: string }) => {
       answerError.value = error.code === 'MINIMAX_NOT_CONFIGURED'
         ? '智能问数尚未完成本机配置，预置问题与政策资料仍可正常查看。'
+        : error.code === 'AUTH_REQUIRED'
+          ? '登录后可使用实时智能问数；预置问题与政策资料仍可自由浏览。'
         : error.code === 'EVIDENCE_NOT_FOUND'
           ? '当前资料中暂未找到足够依据，请补充更具体的政策、项目或指标关键词。'
           : '暂时无法完成回答，请稍后重试。'

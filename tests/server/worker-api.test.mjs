@@ -49,7 +49,11 @@ test('worker serves policy search and evidence-backed MiniMax answers', async ()
 
   const qaResponse = await handler(new Request('https://park.example/api/qa', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      'oai-authenticated-user-id': 'signed-in-user',
+      'oai-authenticated-user-email': 'signed-in@example.test',
+    },
     body: JSON.stringify({ question: '园区应如何提升清洁能源比例？' }),
   }), env)
   const answer = await qaResponse.json()
@@ -59,6 +63,19 @@ test('worker serves policy search and evidence-backed MiniMax answers', async ()
   assert.equal(upstreamCalls.length, 1)
   assert.equal(upstreamCalls[0].url, 'https://api.minimaxi.com/anthropic/v1/messages')
   assert.equal(upstreamCalls[0].init.headers['x-api-key'], 'test-key')
+})
+
+test('worker requires a trusted signed-in identity before calling live QA', async () => {
+  let upstreamCalls = 0
+  const handler = createWorkerHandler({ catalog, index, fetchImpl: async () => { upstreamCalls += 1; return Response.json({}) } })
+  const response = await handler(new Request('https://park.example/api/qa', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ question: '如何提高绿电比例？' }),
+  }), { MINIMAX_API_KEY: 'test-key' })
+
+  assert.equal(response.status, 401)
+  assert.equal((await response.json()).code, 'AUTH_REQUIRED')
+  assert.equal(upstreamCalls, 0)
 })
 
 test('worker delegates non-API routes to the static asset binding', async () => {

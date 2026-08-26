@@ -32973,6 +32973,7 @@ function createWorkerHandler({ catalog: policyCatalog = catalog_default, index: 
 				return json({ results: repository.search(cleanQuestion(body.query), body.filters ?? {}, body.limit ?? 6) });
 			}
 			if (request.method === "POST" && url.pathname === "/api/qa") {
+				getTrustedIdentity(request, env);
 				const body = await readJson(request);
 				const question = cleanQuestion(body.question);
 				return json(await answerQuestion({
