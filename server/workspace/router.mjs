@@ -5,6 +5,7 @@ import { createParkService } from './parks.mjs'
 import { createImportService } from './imports.mjs'
 import { createDiagnosisService } from './diagnosis.mjs'
 import { createTaskFileService } from './tasks.mjs'
+import { createExportService } from './exports.mjs'
 
 const defaultDeps = {
   id: () => crypto.randomUUID(),
@@ -28,6 +29,7 @@ export function createWorkspaceRouter(deps = {}) {
         const imports = createImportService({ db: env.DB, files: env.FILES, env, deps: runtimeDeps })
         const diagnosis = createDiagnosisService({ db: env.DB, env, deps: runtimeDeps })
         const taskFiles = createTaskFileService({ db: env.DB, files: env.FILES, env, deps: runtimeDeps })
+        const exports = createExportService({ db: env.DB, files: env.FILES, env, deps: runtimeDeps })
 
         if (request.method === 'GET' && url.pathname === '/api/auth/me') {
           return workspaceJson({ user: await service.me(identity) })
@@ -75,6 +77,22 @@ export function createWorkspaceRouter(deps = {}) {
           const fileId = fileMatch[2] ? decodeURIComponent(fileMatch[2]) : null
           if (request.method === 'POST' && !fileId) return workspaceJson({ file: await taskFiles.uploadFile(identity, parkId, request) }, 201)
           if (request.method === 'GET' && fileId) return taskFiles.downloadFile(identity, parkId, fileId)
+        }
+
+        const exportMatch = url.pathname.match(/^\/api\/workspace\/parks\/([^/]+)\/exports(?:\/([^/]+))?$/)
+        if (exportMatch) {
+          const parkId = decodeURIComponent(exportMatch[1])
+          const exportId = exportMatch[2] ? decodeURIComponent(exportMatch[2]) : null
+          if (request.method === 'POST' && !exportId) {
+            const generated = await exports.generate(identity, parkId, await readWorkspaceJson(request))
+            return generated.exported
+              ? workspaceJson({ preview: generated.preview, export: generated.exported }, 201)
+              : workspaceJson({ preview: generated.preview })
+          }
+          if (request.method === 'GET' && exportId) {
+            const found = await exports.get(identity, parkId, exportId, url.searchParams.get('download') === '1')
+            return found.response ?? workspaceJson({ export: found.exported })
+          }
         }
 
         const parkMatch = url.pathname.match(/^\/api\/workspace\/parks\/([^/]+)$/)

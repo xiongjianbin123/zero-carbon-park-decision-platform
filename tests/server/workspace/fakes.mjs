@@ -68,8 +68,13 @@ export class FakeD1 {
 
 export class FakeR2 {
   #objects = new Map()
+  failNextPut = false
 
   async put(key, value, options = {}) {
+    if (this.failNextPut) {
+      this.failNextPut = false
+      throw new Error('injected R2 put failure')
+    }
     const bytes = value instanceof ArrayBuffer ? new Uint8Array(value) : value
     this.#objects.set(key, { bytes, httpMetadata: options.httpMetadata, customMetadata: options.customMetadata })
     return { key }

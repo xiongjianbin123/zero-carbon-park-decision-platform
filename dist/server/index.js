@@ -1266,7 +1266,7 @@ function parseJsonArray(value) {
 		return [];
 	}
 }
-function parkShape(row) {
+function parkShape$1(row) {
 	return {
 		id: row.id,
 		name: row.name,
@@ -1300,7 +1300,7 @@ function validatePark(body, current = {}) {
 		})
 	};
 }
-async function audit$2(db, deps, { parkId, userId, action, objectType, objectId, summary = "" }) {
+async function audit$3(db, deps, { parkId, userId, action, objectType, objectId, summary = "" }) {
 	await db.prepare(`INSERT INTO audit_logs (id, park_id, user_id, action, object_type, object_id, result, summary, created_at)
     VALUES (?, ?, ?, ?, ?, ?, 'succeeded', ?, ?)`).bind(deps.id(), parkId, userId, action, objectType, objectId, summary.slice(0, 300), deps.now()).run();
 }
@@ -1319,7 +1319,7 @@ function createParkService({ db, env, deps }) {
 			return (await db.prepare(`SELECT p.*, pm.role FROM parks p
         JOIN park_members pm ON pm.park_id = p.id
         WHERE pm.user_id = ? AND pm.member_status = 'active'
-        ORDER BY p.created_at, p.name`).bind(user.id).all()).results.map(parkShape);
+        ORDER BY p.created_at, p.name`).bind(user.id).all()).results.map(parkShape$1);
 		},
 		async create(identity, body) {
 			const user = await requireOrgUser(db, identity, env, deps, ["org_admin"]);
@@ -1345,7 +1345,7 @@ function createParkService({ db, env, deps }) {
 			const member = await requireParkRole(db, parkId, await requireOrgUser(db, identity, env, deps));
 			const park = await db.prepare("SELECT * FROM parks WHERE id = ?").bind(parkId).first();
 			if (!park) throw new WorkspaceError("PARK_NOT_FOUND", "未找到该园区。", 404);
-			return parkShape({
+			return parkShape$1({
 				...park,
 				role: member.role
 			});
@@ -1357,7 +1357,7 @@ function createParkService({ db, env, deps }) {
 			if (!current) throw new WorkspaceError("PARK_NOT_FOUND", "未找到该园区。", 404);
 			const input = validatePark(body, current);
 			await db.prepare(`UPDATE parks SET name = ?, region = ?, park_type = ?, leading_industries = ?, baseline_year = ?, target_year = ?, application_direction = ?, updated_at = ? WHERE id = ?`).bind(input.name, input.region, input.parkType, JSON.stringify(input.leadingIndustries), input.baselineYear, input.targetYear, input.applicationDirection, deps.now(), parkId).run();
-			await audit$2(db, deps, {
+			await audit$3(db, deps, {
 				parkId,
 				userId: user.id,
 				action: "park.update",
@@ -1393,7 +1393,7 @@ function createParkService({ db, env, deps }) {
 			await db.prepare(`INSERT INTO park_members
         (id, park_id, user_id, email, role, member_status, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(memberId, parkId, user.sites_user_id ? user.id : null, email, body.role, user.sites_user_id ? "active" : "invited", timestamp, timestamp).run();
-			await audit$2(db, deps, {
+			await audit$3(db, deps, {
 				parkId,
 				userId: actor.id,
 				action: "member.invite",
@@ -1412,7 +1412,7 @@ function createParkService({ db, env, deps }) {
 			await requireParkRole(db, parkId, actor, ["admin"]);
 			if (!PARK_ROLES.includes(body.role)) throw new WorkspaceError("VALIDATION_FAILED", "提交内容不符合要求。", 422, { role: "请选择有效项目角色。" });
 			if (!(await db.prepare("UPDATE park_members SET role = ?, updated_at = ? WHERE id = ? AND park_id = ?").bind(body.role, deps.now(), memberId, parkId).run()).meta.changes) throw new WorkspaceError("MEMBER_NOT_FOUND", "未找到该成员。", 404);
-			await audit$2(db, deps, {
+			await audit$3(db, deps, {
 				parkId,
 				userId: actor.id,
 				action: "member.update",
@@ -1536,6 +1536,43 @@ function Base64_encode(input) {
 	}
 	return o;
 }
+function Base64_encode_pass(input) {
+	var o = "";
+	var c1 = 0, c2 = 0, c3 = 0, e1 = 0, e2 = 0, e3 = 0, e4 = 0;
+	for (var i = 0; i < input.length;) {
+		c1 = input.charCodeAt(i++);
+		if (c1 > 255) c1 = 95;
+		e1 = c1 >> 2;
+		c2 = input.charCodeAt(i++);
+		if (c2 > 255) c2 = 95;
+		e2 = (c1 & 3) << 4 | c2 >> 4;
+		c3 = input.charCodeAt(i++);
+		if (c3 > 255) c3 = 95;
+		e3 = (c2 & 15) << 2 | c3 >> 6;
+		e4 = c3 & 63;
+		if (isNaN(c2)) e3 = e4 = 64;
+		else if (isNaN(c3)) e4 = 64;
+		o += Base64_map.charAt(e1) + Base64_map.charAt(e2) + Base64_map.charAt(e3) + Base64_map.charAt(e4);
+	}
+	return o;
+}
+function Base64_encode_arr(input) {
+	var o = "";
+	var c1 = 0, c2 = 0, c3 = 0, e1 = 0, e2 = 0, e3 = 0, e4 = 0;
+	for (var i = 0; i < input.length;) {
+		c1 = input[i++];
+		e1 = c1 >> 2;
+		c2 = input[i++];
+		e2 = (c1 & 3) << 4 | c2 >> 4;
+		c3 = input[i++];
+		e3 = (c2 & 15) << 2 | c3 >> 6;
+		e4 = c3 & 63;
+		if (isNaN(c2)) e3 = e4 = 64;
+		else if (isNaN(c3)) e4 = 64;
+		o += Base64_map.charAt(e1) + Base64_map.charAt(e2) + Base64_map.charAt(e3) + Base64_map.charAt(e4);
+	}
+	return o;
+}
 function Base64_decode(input) {
 	var o = "";
 	var c1 = 0, c2 = 0, c3 = 0, e1 = 0, e2 = 0, e3 = 0, e4 = 0;
@@ -1595,6 +1632,12 @@ var s2a = function s2a(s) {
 		return x.charCodeAt(0) & 255;
 	});
 };
+function s2ab(s) {
+	if (typeof ArrayBuffer === "undefined") return s2a(s);
+	var buf = new ArrayBuffer(s.length), view = new Uint8Array(buf);
+	for (var i = 0; i != s.length; ++i) view[i] = s.charCodeAt(i) & 255;
+	return buf;
+}
 function a2s(data) {
 	if (Array.isArray(data)) return data.map(function(c) {
 		return String.fromCharCode(c);
@@ -1602,6 +1645,10 @@ function a2s(data) {
 	var o = [];
 	for (var i = 0; i < data.length; ++i) o[i] = String.fromCharCode(data[i]);
 	return o.join("");
+}
+function a2u(data) {
+	if (typeof Uint8Array === "undefined") throw new Error("Unsupported");
+	return new Uint8Array(data);
 }
 function ab2a(data) {
 	if (typeof ArrayBuffer == "undefined") throw new Error("Unsupported");
@@ -3107,6 +3154,9 @@ function SSF_load(fmt, idx) {
 	}
 	table_fmt[idx] = fmt;
 	return idx;
+}
+function SSF_load_table(tbl) {
+	for (var i = 0; i != 392; ++i) if (tbl[i] !== void 0) SSF_load(tbl[i], i);
 }
 function make_ssf() {
 	table_fmt = SSF_init_table();
@@ -4981,6 +5031,76 @@ var CFB = /*#__PURE__*/ (function _CFB() {
 	return exports;
 })();
 var _fs;
+function blobify(data) {
+	if (typeof data === "string") return s2ab(data);
+	if (Array.isArray(data)) return a2u(data);
+	return data;
+}
+function write_dl(fname, payload, enc) {
+	if (typeof Deno !== "undefined") {
+		if (enc && typeof payload == "string") switch (enc) {
+			case "utf8":
+				payload = new TextEncoder(enc).encode(payload);
+				break;
+			case "binary":
+				payload = s2ab(payload);
+				break;
+			default: throw new Error("Unsupported encoding " + enc);
+		}
+		return Deno.writeFileSync(fname, payload);
+	}
+	var data = enc == "utf8" ? utf8write(payload) : payload;
+	if (typeof IE_SaveFile !== "undefined") return IE_SaveFile(data, fname);
+	if (typeof Blob !== "undefined") {
+		var blob = new Blob([blobify(data)], { type: "application/octet-stream" });
+		if (typeof navigator !== "undefined" && navigator.msSaveBlob) return navigator.msSaveBlob(blob, fname);
+		if (typeof saveAs !== "undefined") return saveAs(blob, fname);
+		if (typeof URL !== "undefined" && typeof document !== "undefined" && document.createElement && URL.createObjectURL) {
+			var url = URL.createObjectURL(blob);
+			if (typeof chrome === "object" && typeof (chrome.downloads || {}).download == "function") {
+				if (URL.revokeObjectURL && typeof setTimeout !== "undefined") setTimeout(function() {
+					URL.revokeObjectURL(url);
+				}, 6e4);
+				return chrome.downloads.download({
+					url,
+					filename: fname,
+					saveAs: true
+				});
+			}
+			var a = document.createElement("a");
+			if (a.download != null) {
+				a.download = fname;
+				a.href = url;
+				document.body.appendChild(a);
+				a.click();
+				document.body.removeChild(a);
+				if (URL.revokeObjectURL && typeof setTimeout !== "undefined") setTimeout(function() {
+					URL.revokeObjectURL(url);
+				}, 6e4);
+				return url;
+			}
+		} else if (typeof URL !== "undefined" && !URL.createObjectURL && typeof chrome === "object") {
+			var b64 = "data:application/octet-stream;base64," + Base64_encode_arr(new Uint8Array(blobify(data)));
+			return chrome.downloads.download({
+				url: b64,
+				filename: fname,
+				saveAs: true
+			});
+		}
+	}
+	if (typeof $ !== "undefined" && typeof File !== "undefined" && typeof Folder !== "undefined") try {
+		var out = File(fname);
+		out.open("w");
+		out.encoding = "binary";
+		if (Array.isArray(payload)) payload = a2s(payload);
+		out.write(payload);
+		out.close();
+		return payload;
+	} catch (e) {
+		if (!e.message || e.message.indexOf("onstruct") == -1) throw e;
+	}
+	throw new Error("cannot save file " + fname);
+}
 function read_binary(path) {
 	if (typeof Deno !== "undefined") return Deno.readFileSync(path);
 	if (typeof $ !== "undefined" && typeof File !== "undefined" && typeof Folder !== "undefined") try {
@@ -5000,9 +5120,27 @@ function keys(o) {
 	for (var i = 0; i < ks.length; ++i) if (Object.prototype.hasOwnProperty.call(o, ks[i])) o2.push(ks[i]);
 	return o2;
 }
+function evert_key(obj, key) {
+	var o = [], K = keys(obj);
+	for (var i = 0; i !== K.length; ++i) if (o[obj[K[i]][key]] == null) o[obj[K[i]][key]] = K[i];
+	return o;
+}
 function evert(obj) {
 	var o = [], K = keys(obj);
 	for (var i = 0; i !== K.length; ++i) o[obj[K[i]]] = K[i];
+	return o;
+}
+function evert_num(obj) {
+	var o = [], K = keys(obj);
+	for (var i = 0; i !== K.length; ++i) o[obj[K[i]]] = parseInt(K[i], 10);
+	return o;
+}
+function evert_arr(obj) {
+	var o = [], K = keys(obj);
+	for (var i = 0; i !== K.length; ++i) {
+		if (o[obj[K[i]]] == null) o[obj[K[i]]] = [];
+		o[obj[K[i]]].push(K[i]);
+	}
 	return o;
 }
 var dnthresh = /*#__PURE__*/ Date.UTC(1899, 11, 30, 0, 0, 0);
@@ -5429,6 +5567,9 @@ function zip_add_file(zip, path, content) {
 		CFB.utils.cfb_add(zip, path, content);
 	} else zip.file(path, content);
 }
+function zip_new() {
+	return CFB.utils.cfb_new();
+}
 function zip_read(d, o) {
 	switch (o.type) {
 		case "base64": return CFB.read(d, { type: "base64" });
@@ -5533,12 +5674,30 @@ var unescapexml = /*#__PURE__*/ (function() {
 	};
 })();
 var decregex = /[&<>'"]/g;
+var charegex = /[\u0000-\u0008\u000b-\u001f\uFFFE-\uFFFF]/g;
+function escapexml(text) {
+	return (text + "").replace(decregex, function(y) {
+		return rencoding[y];
+	}).replace(charegex, function(s) {
+		return "_x" + ("000" + s.charCodeAt(0).toString(16)).slice(-4) + "_";
+	});
+}
+function escapexmltag(text) {
+	return escapexml(text).replace(/ /g, "_x0020_");
+}
 var htmlcharegex = /[\u0000-\u001f]/g;
 function escapehtml(text) {
 	return (text + "").replace(decregex, function(y) {
 		return rencoding[y];
 	}).replace(/\n/g, "<br/>").replace(htmlcharegex, function(s) {
 		return "&#x" + ("000" + s.charCodeAt(0).toString(16)).slice(-4) + ";";
+	});
+}
+function escapexlml(text) {
+	return (text + "").replace(decregex, function(y) {
+		return rencoding[y];
+	}).replace(htmlcharegex, function(s) {
+		return "&#x" + s.charCodeAt(0).toString(16).toUpperCase() + ";";
 	});
 }
 var xlml_fixstr = /*#__PURE__*/ (function() {
@@ -5550,6 +5709,9 @@ var xlml_fixstr = /*#__PURE__*/ (function() {
 		return str.replace(entregex, entrepl);
 	};
 })();
+function xlml_unfixstr(str) {
+	return str.replace(/(\r\n|[\r\n])/g, "&#10;");
+}
 function parsexmlbool(value) {
 	switch (value) {
 		case 1:
@@ -5691,6 +5853,9 @@ function parseVector(data, opts) {
 	return res;
 }
 var wtregex = /(^\s|\s$|\n)/;
+function writetag(f, g) {
+	return "<" + f + (g.match(wtregex) ? " xml:space=\"preserve\"" : "") + ">" + g + "</" + f + ">";
+}
 function wxt_helper(h) {
 	return keys(h).map(function(k) {
 		return " " + k + "=\"" + h[k] + "\"";
@@ -5698,6 +5863,26 @@ function wxt_helper(h) {
 }
 function writextag(f, g, h) {
 	return "<" + f + (h != null ? wxt_helper(h) : "") + (g != null ? (g.match(wtregex) ? " xml:space=\"preserve\"" : "") + ">" + g + "</" + f : "/") + ">";
+}
+function write_w3cdtf(d, t) {
+	try {
+		return d.toISOString().replace(/\.\d*/, "");
+	} catch (e) {
+		if (t) throw e;
+	}
+	return "";
+}
+function write_vt(s, xlsx) {
+	switch (typeof s) {
+		case "string":
+			var o = writextag("vt:lpwstr", escapexml(s));
+			if (xlsx) o = o.replace(/&quot;/g, "_x0022_");
+			return o;
+		case "number": return writextag((s | 0) == s ? "vt:i4" : "vt:r8", escapexml(String(s)));
+		case "boolean": return writextag("vt:bool", s ? "true" : "false");
+	}
+	if (s instanceof Date) return writextag("vt:filetime", write_w3cdtf(s));
+	throw new Error("Unable to serialize " + s);
 }
 function xlml_normalize(d) {
 	if (has_buf && Buffer.isBuffer(d)) return d.toString("utf8");
@@ -5729,6 +5914,15 @@ var XMLNS_main = [
 	"http://schemas.microsoft.com/office/excel/2006/main",
 	"http://schemas.microsoft.com/office/excel/2006/2"
 ];
+var XLMLNS = {
+	"o": "urn:schemas-microsoft-com:office:office",
+	"x": "urn:schemas-microsoft-com:office:excel",
+	"ss": "urn:schemas-microsoft-com:office:spreadsheet",
+	"dt": "uuid:C2F41010-65B3-11d1-A29F-00AA00C14882",
+	"mv": "http://macVmlSchemaUri",
+	"v": "urn:schemas-microsoft-com:vml",
+	"html": "http://www.w3.org/TR/REC-html40"
+};
 function read_double_le(b, idx) {
 	var s = 1 - 2 * (b[idx + 7] >>> 7);
 	var e = ((b[idx + 7] & 127) << 4) + (b[idx + 6] >>> 4 & 15);
@@ -6172,6 +6366,29 @@ function buf_array() {
 		end2
 	};
 }
+function write_record(ba, type, payload, length) {
+	var t = +type, l;
+	if (isNaN(t)) return;
+	if (!length) length = XLSBRecordEnum[t].p || (payload || []).length || 0;
+	l = 1 + (t >= 128 ? 1 : 0) + 1;
+	if (length >= 128) ++l;
+	if (length >= 16384) ++l;
+	if (length >= 2097152) ++l;
+	var o = ba.next(l);
+	if (t <= 127) o.write_shift(1, t);
+	else {
+		o.write_shift(1, (t & 127) + 128);
+		o.write_shift(1, t >> 7);
+	}
+	for (var i = 0; i != 4; ++i) if (length >= 128) {
+		o.write_shift(1, (length & 127) + 128);
+		length >>= 7;
+	} else {
+		o.write_shift(1, length);
+		break;
+	}
+	if (length > 0 && is_buf(payload)) ba.push(payload);
+}
 function shift_cell_xls(cell, tgt, opts) {
 	var out = dup(cell);
 	if (tgt.s) {
@@ -6282,6 +6499,10 @@ function encode_range(cs, ce) {
 	if (typeof cs !== "string") cs = encode_cell(cs);
 	if (typeof ce !== "string") ce = encode_cell(ce);
 	return cs == ce ? cs : cs + ":" + ce;
+}
+function fix_range(a1) {
+	var s = decode_range(a1);
+	return "$" + encode_col(s.s.c) + "$" + encode_row(s.s.r) + ":$" + encode_col(s.e.c) + "$" + encode_row(s.e.r);
 }
 function formula_quote_sheet_name(sname, opts) {
 	if (!sname && !(opts && opts.biff <= 5 && opts.biff >= 2)) throw new Error("empty sheet name");
@@ -6472,15 +6693,36 @@ function aoa_to_sheet(data, opts) {
 function parse_Int32LE(data) {
 	return data.read_shift(4, "i");
 }
+function write_UInt32LE(x, o) {
+	if (!o) o = new_buf(4);
+	o.write_shift(4, x);
+	return o;
+}
 function parse_XLWideString(data) {
 	var cchCharacters = data.read_shift(4);
 	return cchCharacters === 0 ? "" : data.read_shift(cchCharacters, "dbcs");
+}
+function write_XLWideString(data, o) {
+	var _null = false;
+	if (o == null) {
+		_null = true;
+		o = new_buf(4 + 2 * data.length);
+	}
+	o.write_shift(4, data.length);
+	if (data.length > 0) o.write_shift(0, data, "dbcs");
+	return _null ? o.slice(0, o.l) : o;
 }
 function parse_StrRun(data) {
 	return {
 		ich: data.read_shift(2),
 		ifnt: data.read_shift(2)
 	};
+}
+function write_StrRun(run, o) {
+	if (!o) o = new_buf(4);
+	o.write_shift(2, run.ich || 0);
+	o.write_shift(2, run.ifnt || 0);
+	return o;
 }
 function parse_RichStr(data, length) {
 	var start = data.l;
@@ -6502,7 +6744,32 @@ function parse_RichStr(data, length) {
 	data.l = start + length;
 	return z;
 }
+function write_RichStr(str, o) {
+	var _null = false;
+	if (o == null) {
+		_null = true;
+		o = new_buf(15 + 4 * str.t.length);
+	}
+	o.write_shift(1, 0);
+	write_XLWideString(str.t, o);
+	return _null ? o.slice(0, o.l) : o;
+}
 var parse_BrtCommentText = parse_RichStr;
+function write_BrtCommentText(str, o) {
+	var _null = false;
+	if (o == null) {
+		_null = true;
+		o = new_buf(23 + 4 * str.t.length);
+	}
+	o.write_shift(1, 1);
+	write_XLWideString(str.t, o);
+	o.write_shift(4, 1);
+	write_StrRun({
+		ich: 0,
+		ifnt: 0
+	}, o);
+	return _null ? o.slice(0, o.l) : o;
+}
 function parse_XLSBCell(data) {
 	var col = data.read_shift(4);
 	var iStyleRef = data.read_shift(2);
@@ -6513,6 +6780,13 @@ function parse_XLSBCell(data) {
 		iStyleRef
 	};
 }
+function write_XLSBCell(cell, o) {
+	if (o == null) o = new_buf(8);
+	o.write_shift(-4, cell.c);
+	o.write_shift(3, cell.iStyleRef || cell.s);
+	o.write_shift(1, 0);
+	return o;
+}
 function parse_XLSBShortCell(data) {
 	var iStyleRef = data.read_shift(2);
 	iStyleRef += data.read_shift(1) << 16;
@@ -6522,13 +6796,31 @@ function parse_XLSBShortCell(data) {
 		iStyleRef
 	};
 }
+function write_XLSBShortCell(cell, o) {
+	if (o == null) o = new_buf(4);
+	o.write_shift(3, cell.iStyleRef || cell.s);
+	o.write_shift(1, 0);
+	return o;
+}
 var parse_XLSBCodeName = parse_XLWideString;
+var write_XLSBCodeName = write_XLWideString;
 function parse_XLNullableWideString(data) {
 	var cchCharacters = data.read_shift(4);
 	return cchCharacters === 0 || cchCharacters === 4294967295 ? "" : data.read_shift(cchCharacters, "dbcs");
 }
+function write_XLNullableWideString(data, o) {
+	var _null = false;
+	if (o == null) {
+		_null = true;
+		o = new_buf(127);
+	}
+	o.write_shift(4, data.length > 0 ? data.length : 4294967295);
+	if (data.length > 0) o.write_shift(0, data, "dbcs");
+	return _null ? o.slice(0, o.l) : o;
+}
 var parse_XLNameWideString = parse_XLWideString;
 var parse_RelID = parse_XLNullableWideString;
+var write_RelID = write_XLNullableWideString;
 function parse_RkNumber(data) {
 	var b = data.slice(data.l, data.l + 4);
 	var fX100 = b[0] & 1, fInt = b[0] & 2;
@@ -6545,6 +6837,17 @@ function parse_RkNumber(data) {
 	], 0) : __readInt32LE(b, 0) >> 2;
 	return fX100 ? RK / 100 : RK;
 }
+function write_RkNumber(data, o) {
+	if (o == null) o = new_buf(4);
+	var fX100 = 0, fInt = 0, d100 = data * 100;
+	if (data == (data | 0) && data >= -536870912 && data < 1 << 29) fInt = 1;
+	else if (d100 == (d100 | 0) && d100 >= -536870912 && d100 < 1 << 29) {
+		fInt = 1;
+		fX100 = 1;
+	}
+	if (fInt) o.write_shift(-4, ((fX100 ? d100 : data) << 2) + (fX100 + 2));
+	else throw new Error("unsupported RkNumber " + data);
+}
 function parse_RfX(data) {
 	var cell = {
 		s: {},
@@ -6556,10 +6859,22 @@ function parse_RfX(data) {
 	cell.e.c = data.read_shift(4);
 	return cell;
 }
+function write_RfX(r, o) {
+	if (!o) o = new_buf(16);
+	o.write_shift(4, r.s.r);
+	o.write_shift(4, r.e.r);
+	o.write_shift(4, r.s.c);
+	o.write_shift(4, r.e.c);
+	return o;
+}
 var parse_UncheckedRfX = parse_RfX;
+var write_UncheckedRfX = write_RfX;
 function parse_Xnum(data) {
 	if (data.length - data.l < 8) throw "XLS Xnum Buffer underflow";
 	return data.read_shift(8, "f");
+}
+function write_Xnum(data, o) {
+	return (o || new_buf(8)).write_shift(8, data, "f");
 }
 function parse_BrtColor(data) {
 	var out = {};
@@ -6591,6 +6906,41 @@ function parse_BrtColor(data) {
 	if (nTS != 0) out.tint = nTS > 0 ? nTS / 32767 : nTS / 32768;
 	return out;
 }
+function write_BrtColor(color, o) {
+	if (!o) o = new_buf(8);
+	if (!color || color.auto) {
+		o.write_shift(4, 0);
+		o.write_shift(4, 0);
+		return o;
+	}
+	if (color.index != null) {
+		o.write_shift(1, 2);
+		o.write_shift(1, color.index);
+	} else if (color.theme != null) {
+		o.write_shift(1, 6);
+		o.write_shift(1, color.theme);
+	} else {
+		o.write_shift(1, 5);
+		o.write_shift(1, 0);
+	}
+	var nTS = color.tint || 0;
+	if (nTS > 0) nTS *= 32767;
+	else if (nTS < 0) nTS *= 32768;
+	o.write_shift(2, nTS);
+	if (!color.rgb || color.theme != null) {
+		o.write_shift(2, 0);
+		o.write_shift(1, 0);
+		o.write_shift(1, 0);
+	} else {
+		var rgb = color.rgb || "FFFFFF";
+		if (typeof rgb == "number") rgb = ("000000" + rgb.toString(16)).slice(-6);
+		o.write_shift(1, parseInt(rgb.slice(0, 2), 16));
+		o.write_shift(1, parseInt(rgb.slice(2, 4), 16));
+		o.write_shift(1, parseInt(rgb.slice(4, 6), 16));
+		o.write_shift(1, 255);
+	}
+	return o;
+}
 function parse_FontFlags(data) {
 	var d = data.read_shift(1);
 	data.l++;
@@ -6604,6 +6954,13 @@ function parse_FontFlags(data) {
 		fCondense: d & 64,
 		fExtend: d & 128
 	};
+}
+function write_FontFlags(font, o) {
+	if (!o) o = new_buf(2);
+	var grbit = (font.italic ? 2 : 0) | (font.strike ? 8 : 0) | (font.outline ? 16 : 0) | (font.shadow ? 32 : 0) | (font.condense ? 64 : 0) | (font.extend ? 128 : 0);
+	o.write_shift(1, grbit);
+	o.write_shift(1, 0);
+	return o;
 }
 function parse_ClipboardFormatOrString(o, w) {
 	var ClipFmt = {
@@ -7138,6 +7495,47 @@ var ct2type = {
 	"image/png": "TODO",
 	"sheet": "js"
 };
+var CT_LIST = {
+	workbooks: {
+		xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml",
+		xlsm: "application/vnd.ms-excel.sheet.macroEnabled.main+xml",
+		xlsb: "application/vnd.ms-excel.sheet.binary.macroEnabled.main",
+		xlam: "application/vnd.ms-excel.addin.macroEnabled.main+xml",
+		xltx: "application/vnd.openxmlformats-officedocument.spreadsheetml.template.main+xml"
+	},
+	strs: {
+		xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml",
+		xlsb: "application/vnd.ms-excel.sharedStrings"
+	},
+	comments: {
+		xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml",
+		xlsb: "application/vnd.ms-excel.comments"
+	},
+	sheets: {
+		xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml",
+		xlsb: "application/vnd.ms-excel.worksheet"
+	},
+	charts: {
+		xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.chartsheet+xml",
+		xlsb: "application/vnd.ms-excel.chartsheet"
+	},
+	dialogs: {
+		xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.dialogsheet+xml",
+		xlsb: "application/vnd.ms-excel.dialogsheet"
+	},
+	macros: {
+		xlsx: "application/vnd.ms-excel.macrosheet+xml",
+		xlsb: "application/vnd.ms-excel.macrosheet"
+	},
+	metadata: {
+		xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheetMetadata+xml",
+		xlsb: "application/vnd.ms-excel.sheetMetadata"
+	},
+	styles: {
+		xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml",
+		xlsb: "application/vnd.ms-excel.styles"
+	}
+};
 function new_ct() {
 	return {
 		workbooks: [],
@@ -7188,6 +7586,86 @@ function parse_ct(data) {
 	ct.defaults = ctext;
 	delete ct.calcchains;
 	return ct;
+}
+function write_ct(ct, opts, raw) {
+	var type2ct = evert_arr(ct2type);
+	var o = [], v;
+	if (!raw) {
+		o[o.length] = XML_HEADER;
+		o[o.length] = writextag("Types", null, {
+			"xmlns": XMLNS.CT,
+			"xmlns:xsd": XMLNS.xsd,
+			"xmlns:xsi": XMLNS.xsi
+		});
+		o = o.concat([
+			["xml", "application/xml"],
+			["bin", "application/vnd.ms-excel.sheet.binary.macroEnabled.main"],
+			["vml", "application/vnd.openxmlformats-officedocument.vmlDrawing"],
+			["data", "application/vnd.openxmlformats-officedocument.model+data"],
+			["bmp", "image/bmp"],
+			["png", "image/png"],
+			["gif", "image/gif"],
+			["emf", "image/x-emf"],
+			["wmf", "image/x-wmf"],
+			["jpg", "image/jpeg"],
+			["jpeg", "image/jpeg"],
+			["tif", "image/tiff"],
+			["tiff", "image/tiff"],
+			["pdf", "application/pdf"],
+			["rels", "application/vnd.openxmlformats-package.relationships+xml"]
+		].map(function(x) {
+			return writextag("Default", null, {
+				"Extension": x[0],
+				"ContentType": x[1]
+			});
+		}));
+	}
+	var f1 = function(w) {
+		if (ct[w] && ct[w].length > 0) {
+			v = ct[w][0];
+			o[o.length] = writextag("Override", null, {
+				"PartName": (v[0] == "/" ? "" : "/") + v,
+				"ContentType": CT_LIST[w][opts.bookType] || CT_LIST[w]["xlsx"]
+			});
+		}
+	};
+	var f2 = function(w) {
+		(ct[w] || []).forEach(function(v) {
+			o[o.length] = writextag("Override", null, {
+				"PartName": (v[0] == "/" ? "" : "/") + v,
+				"ContentType": CT_LIST[w][opts.bookType] || CT_LIST[w]["xlsx"]
+			});
+		});
+	};
+	var f3 = function(t) {
+		(ct[t] || []).forEach(function(v) {
+			o[o.length] = writextag("Override", null, {
+				"PartName": (v[0] == "/" ? "" : "/") + v,
+				"ContentType": type2ct[t][0]
+			});
+		});
+	};
+	f1("workbooks");
+	f2("sheets");
+	f2("charts");
+	f3("themes");
+	["strs", "styles"].forEach(f1);
+	[
+		"coreprops",
+		"extprops",
+		"custprops"
+	].forEach(f3);
+	f3("vba");
+	f3("comments");
+	f3("threadedcomments");
+	f3("drawings");
+	f2("metadata");
+	f3("people");
+	if (!raw && o.length > 2) {
+		o[o.length] = "</Types>";
+		o[1] = o[1].replace("/>", ">");
+	}
+	return o.join("");
 }
 var RELS = {
 	WB: "http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument",
@@ -7245,6 +7723,37 @@ function parse_rels(data, currentFilePath) {
 	rels["!id"] = hash;
 	return rels;
 }
+function write_rels(rels) {
+	var o = [XML_HEADER, writextag("Relationships", null, { "xmlns": XMLNS.RELS })];
+	keys(rels["!id"]).forEach(function(rid) {
+		o[o.length] = writextag("Relationship", null, rels["!id"][rid]);
+	});
+	if (o.length > 2) {
+		o[o.length] = "</Relationships>";
+		o[1] = o[1].replace("/>", ">");
+	}
+	return o.join("");
+}
+function add_rels(rels, rId, f, type, relobj, targetmode) {
+	if (!relobj) relobj = {};
+	if (!rels["!id"]) rels["!id"] = {};
+	if (!rels["!idx"]) rels["!idx"] = 1;
+	if (rId < 0) for (rId = rels["!idx"]; rels["!id"]["rId" + rId]; ++rId);
+	rels["!idx"] = rId + 1;
+	relobj.Id = "rId" + rId;
+	relobj.Type = type;
+	relobj.Target = f;
+	if (targetmode) relobj.TargetMode = targetmode;
+	else if ([
+		RELS.HLINK,
+		RELS.XPATH,
+		RELS.XMISS
+	].indexOf(relobj.Type) > -1) relobj.TargetMode = "External";
+	if (rels["!id"][relobj.Id]) throw new Error("Cannot rewrite rId " + rId);
+	rels["!id"][relobj.Id] = relobj;
+	rels[("/" + relobj.Target).replace("//", "/")] = relobj;
+	return rId;
+}
 var CT_ODS = "application/vnd.oasis.opendocument.spreadsheet";
 function parse_manifest(d, opts) {
 	var str = xlml_normalize(d);
@@ -7262,6 +7771,42 @@ function parse_manifest(d, opts) {
 		case "key-derivation": throw new Error("Unsupported ODS Encryption");
 		default: if (opts && opts.WTF) throw Rn;
 	}
+}
+function write_manifest(manifest) {
+	var o = [XML_HEADER];
+	o.push("<manifest:manifest xmlns:manifest=\"urn:oasis:names:tc:opendocument:xmlns:manifest:1.0\" manifest:version=\"1.2\">\n");
+	o.push("  <manifest:file-entry manifest:full-path=\"/\" manifest:version=\"1.2\" manifest:media-type=\"application/vnd.oasis.opendocument.spreadsheet\"/>\n");
+	for (var i = 0; i < manifest.length; ++i) o.push("  <manifest:file-entry manifest:full-path=\"" + manifest[i][0] + "\" manifest:media-type=\"" + manifest[i][1] + "\"/>\n");
+	o.push("</manifest:manifest>");
+	return o.join("");
+}
+function write_rdf_type(file, res, tag) {
+	return [
+		"  <rdf:Description rdf:about=\"" + file + "\">\n",
+		"    <rdf:type rdf:resource=\"http://docs.oasis-open.org/ns/office/1.2/meta/" + (tag || "odf") + "#" + res + "\"/>\n",
+		"  </rdf:Description>\n"
+	].join("");
+}
+function write_rdf_has(base, file) {
+	return [
+		"  <rdf:Description rdf:about=\"" + base + "\">\n",
+		"    <ns0:hasPart xmlns:ns0=\"http://docs.oasis-open.org/ns/office/1.2/meta/pkg#\" rdf:resource=\"" + file + "\"/>\n",
+		"  </rdf:Description>\n"
+	].join("");
+}
+function write_rdf(rdf) {
+	var o = [XML_HEADER];
+	o.push("<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n");
+	for (var i = 0; i != rdf.length; ++i) {
+		o.push(write_rdf_type(rdf[i][0], rdf[i][1]));
+		o.push(write_rdf_has("", rdf[i][0]));
+	}
+	o.push(write_rdf_type("", "Document", "pkg"));
+	o.push("</rdf:RDF>");
+	return o.join("");
+}
+function write_meta_ods(wb, opts) {
+	return "<office:document-meta xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:meta=\"urn:oasis:names:tc:opendocument:xmlns:meta:1.0\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" office:version=\"1.2\"><office:meta><meta:generator>SheetJS " + XLSX.version + "</meta:generator></office:meta></office:document-meta>";
 }
 var CORE_PROPS = [
 	["cp:category", "Category"],
@@ -7297,6 +7842,40 @@ function parse_core_props(data) {
 		if (f[2] === "date" && p[f[1]]) p[f[1]] = parseDate(p[f[1]]);
 	}
 	return p;
+}
+function cp_doit(f, g, h, o, p) {
+	if (p[f] != null || g == null || g === "") return;
+	p[f] = g;
+	g = escapexml(g);
+	o[o.length] = h ? writextag(f, g, h) : writetag(f, g);
+}
+function write_core_props(cp, _opts) {
+	var opts = _opts || {};
+	var o = [XML_HEADER, writextag("cp:coreProperties", null, {
+		"xmlns:cp": XMLNS.CORE_PROPS,
+		"xmlns:dc": XMLNS.dc,
+		"xmlns:dcterms": XMLNS.dcterms,
+		"xmlns:dcmitype": XMLNS.dcmitype,
+		"xmlns:xsi": XMLNS.xsi
+	})], p = {};
+	if (!cp && !opts.Props) return o.join("");
+	if (cp) {
+		if (cp.CreatedDate != null) cp_doit("dcterms:created", typeof cp.CreatedDate === "string" ? cp.CreatedDate : write_w3cdtf(cp.CreatedDate, opts.WTF), { "xsi:type": "dcterms:W3CDTF" }, o, p);
+		if (cp.ModifiedDate != null) cp_doit("dcterms:modified", typeof cp.ModifiedDate === "string" ? cp.ModifiedDate : write_w3cdtf(cp.ModifiedDate, opts.WTF), { "xsi:type": "dcterms:W3CDTF" }, o, p);
+	}
+	for (var i = 0; i != CORE_PROPS.length; ++i) {
+		var f = CORE_PROPS[i];
+		var v = opts.Props && opts.Props[f[1]] != null ? opts.Props[f[1]] : cp ? cp[f[1]] : null;
+		if (v === true) v = "1";
+		else if (v === false) v = "0";
+		else if (typeof v == "number") v = String(v);
+		if (v != null) cp_doit(f[0], v, null, o, p);
+	}
+	if (o.length > 2) {
+		o[o.length] = "</cp:coreProperties>";
+		o[1] = o[1].replace("/>", ">");
+	}
+	return o.join("");
 }
 var EXT_PROPS = [
 	[
@@ -7354,6 +7933,14 @@ var EXT_PROPS = [
 		"TitlesOfParts",
 		"raw"
 	]
+];
+var PseudoPropsPairs = [
+	"Worksheets",
+	"SheetNames",
+	"NamedRanges",
+	"DefinedNames",
+	"Chartsheets",
+	"ChartNames"
 ];
 function load_props_pairs(HP, TOP, props, opts) {
 	var v = [];
@@ -7423,6 +8010,42 @@ function parse_ext_props(data, p, opts) {
 	if (q.HeadingPairs && q.TitlesOfParts) load_props_pairs(q.HeadingPairs, q.TitlesOfParts, p, opts);
 	return p;
 }
+function write_ext_props(cp) {
+	var o = [], W = writextag;
+	if (!cp) cp = {};
+	cp.Application = "SheetJS";
+	o[o.length] = XML_HEADER;
+	o[o.length] = writextag("Properties", null, {
+		"xmlns": XMLNS.EXT_PROPS,
+		"xmlns:vt": XMLNS.vt
+	});
+	EXT_PROPS.forEach(function(f) {
+		if (cp[f[1]] === void 0) return;
+		var v;
+		switch (f[2]) {
+			case "string":
+				v = escapexml(String(cp[f[1]]));
+				break;
+			case "bool": v = cp[f[1]] ? "true" : "false";
+		}
+		if (v !== void 0) o[o.length] = W(f[0], v);
+	});
+	o[o.length] = W("HeadingPairs", W("vt:vector", W("vt:variant", "<vt:lpstr>Worksheets</vt:lpstr>") + W("vt:variant", W("vt:i4", String(cp.Worksheets))), {
+		size: 2,
+		baseType: "variant"
+	}));
+	o[o.length] = W("TitlesOfParts", W("vt:vector", cp.SheetNames.map(function(s) {
+		return "<vt:lpstr>" + escapexml(s) + "</vt:lpstr>";
+	}).join(""), {
+		size: cp.Worksheets,
+		baseType: "lpstr"
+	}));
+	if (o.length > 2) {
+		o[o.length] = "</Properties>";
+		o[1] = o[1].replace("/>", ">");
+	}
+	return o.join("");
+}
 var custregex = /<[^<>]+>[^<]*/g;
 function parse_cust_props(data, opts) {
 	var p = {}, name = "";
@@ -7480,6 +8103,27 @@ function parse_cust_props(data, opts) {
 	}
 	return p;
 }
+function write_cust_props(cp) {
+	var o = [XML_HEADER, writextag("Properties", null, {
+		"xmlns": XMLNS.CUST_PROPS,
+		"xmlns:vt": XMLNS.vt
+	})];
+	if (!cp) return o.join("");
+	var pid = 1;
+	keys(cp).forEach(function custprop(k) {
+		++pid;
+		o[o.length] = writextag("property", write_vt(cp[k], true), {
+			"fmtid": "{D5CDD505-2E9C-101B-9397-08002B2CF9AE}",
+			"pid": pid,
+			"name": escapexml(k)
+		});
+	});
+	if (o.length > 2) {
+		o[o.length] = "</Properties>";
+		o[1] = o[1].replace("/>", ">");
+	}
+	return o.join("");
+}
 var XLMLDocPropsMap = {
 	Title: "Title",
 	Subject: "Subject",
@@ -7506,9 +8150,82 @@ function xlml_set_prop(Props, tag, val) {
 	tag = evert_XLMLDPM[tag] || tag;
 	Props[tag] = val;
 }
+function xlml_write_docprops(Props, opts) {
+	var o = [];
+	keys(XLMLDocPropsMap).map(function(m) {
+		for (var i = 0; i < CORE_PROPS.length; ++i) if (CORE_PROPS[i][1] == m) return CORE_PROPS[i];
+		for (i = 0; i < EXT_PROPS.length; ++i) if (EXT_PROPS[i][1] == m) return EXT_PROPS[i];
+		throw m;
+	}).forEach(function(p) {
+		if (Props[p[1]] == null) return;
+		var m = opts && opts.Props && opts.Props[p[1]] != null ? opts.Props[p[1]] : Props[p[1]];
+		switch (p[2]) {
+			case "date": m = new Date(m).toISOString().replace(/\.\d*Z/, "Z");
+		}
+		if (typeof m == "number") m = String(m);
+		else if (m === true || m === false) m = m ? "1" : "0";
+		else if (m instanceof Date) m = new Date(m).toISOString().replace(/\.\d*Z/, "");
+		o.push(writetag(XLMLDocPropsMap[p[1]] || p[1], m));
+	});
+	return writextag("DocumentProperties", o.join(""), { xmlns: XLMLNS.o });
+}
+function xlml_write_custprops(Props, Custprops) {
+	var BLACKLIST = ["Worksheets", "SheetNames"];
+	var T = "CustomDocumentProperties";
+	var o = [];
+	if (Props) keys(Props).forEach(function(k) {
+		if (!Object.prototype.hasOwnProperty.call(Props, k)) return;
+		for (var i = 0; i < CORE_PROPS.length; ++i) if (k == CORE_PROPS[i][1]) return;
+		for (i = 0; i < EXT_PROPS.length; ++i) if (k == EXT_PROPS[i][1]) return;
+		for (i = 0; i < BLACKLIST.length; ++i) if (k == BLACKLIST[i]) return;
+		var m = Props[k];
+		var t = "string";
+		if (typeof m == "number") {
+			t = "float";
+			m = String(m);
+		} else if (m === true || m === false) {
+			t = "boolean";
+			m = m ? "1" : "0";
+		} else m = String(m);
+		o.push(writextag(escapexmltag(k), m, { "dt:dt": t }));
+	});
+	if (Custprops) keys(Custprops).forEach(function(k) {
+		if (!Object.prototype.hasOwnProperty.call(Custprops, k)) return;
+		if (Props && Object.prototype.hasOwnProperty.call(Props, k)) return;
+		var m = Custprops[k];
+		var t = "string";
+		if (typeof m == "number") {
+			t = "float";
+			m = String(m);
+		} else if (m === true || m === false) {
+			t = "boolean";
+			m = m ? "1" : "0";
+		} else if (m instanceof Date) {
+			t = "dateTime.tz";
+			m = m.toISOString();
+		} else m = String(m);
+		o.push(writextag(escapexmltag(k), m, { "dt:dt": t }));
+	});
+	return "<" + T + " xmlns=\"" + XLMLNS.o + "\">" + o.join("") + "</" + T + ">";
+}
 function parse_FILETIME(blob) {
 	var dwLowDateTime = blob.read_shift(4), dwHighDateTime = blob.read_shift(4);
 	return (/* @__PURE__ */ new Date((dwHighDateTime / 1e7 * Math.pow(2, 32) + dwLowDateTime / 1e7 - 11644473600) * 1e3)).toISOString().replace(/\.000/, "");
+}
+function write_FILETIME(time) {
+	var t = (typeof time == "string" ? new Date(Date.parse(time)) : time).getTime() / 1e3 + 11644473600;
+	var l = t % Math.pow(2, 32), h = (t - l) / Math.pow(2, 32);
+	l *= 1e7;
+	h *= 1e7;
+	var w = l / Math.pow(2, 32) | 0;
+	if (w > 0) {
+		l = l % Math.pow(2, 32);
+		h += w;
+	}
+	var o = new_buf(8);
+	o.write_shift(4, l);
+	o.write_shift(4, h);
+	return o;
 }
 function parse_lpstr(blob, type, pad) {
 	var start = blob.l;
@@ -7621,6 +8338,34 @@ function parse_TypedPropertyValue(blob, type, _opts) {
 		case 4127: return t == 4127 ? parse_VtVecLpwstrValue(blob) : parse_VtVecUnalignedLpstrValue(blob);
 		default: throw new Error("TypedPropertyValue unrecognized type " + type + " " + t);
 	}
+}
+function write_TypedPropertyValue(type, value) {
+	var o = new_buf(4), p = new_buf(4);
+	o.write_shift(4, type == 80 ? 31 : type);
+	switch (type) {
+		case 3:
+			p.write_shift(-4, value);
+			break;
+		case 5:
+			p = new_buf(8);
+			p.write_shift(8, value, "f");
+			break;
+		case 11:
+			p.write_shift(4, value ? 1 : 0);
+			break;
+		case 64:
+			p = write_FILETIME(value);
+			break;
+		case 31:
+		case 80:
+			p = new_buf(4 + 2 * (value.length + 1) + (value.length % 2 ? 0 : 2));
+			p.write_shift(4, value.length + 1);
+			p.write_shift(0, value, "dbcs");
+			while (p.l != p.length) p.write_shift(1, 0);
+			break;
+		default: throw new Error("TypedPropertyValue unrecognized type " + type + " " + value);
+	}
+	return bconcat([o, p]);
 }
 function parse_PropertySet(blob, PIDSI) {
 	var start_addr = blob.l;
@@ -7759,6 +8504,88 @@ function parse_PropertySet(blob, PIDSI) {
 	blob.l = start_addr + size;
 	return PropH;
 }
+var XLSPSSkip = [
+	"CodePage",
+	"Thumbnail",
+	"_PID_LINKBASE",
+	"_PID_HLINKS",
+	"SystemIdentifier",
+	"FMTID"
+];
+function guess_property_type(val) {
+	switch (typeof val) {
+		case "boolean": return 11;
+		case "number": return (val | 0) == val ? 3 : 5;
+		case "string": return 31;
+		case "object": if (val instanceof Date) return 64;
+	}
+	return -1;
+}
+function write_PropertySet(entries, RE, PIDSI) {
+	var hdr = new_buf(8), piao = [], prop = [];
+	var sz = 8, i = 0;
+	var pr = new_buf(8), pio = new_buf(8);
+	pr.write_shift(4, 2);
+	pr.write_shift(4, 1200);
+	pio.write_shift(4, 1);
+	prop.push(pr);
+	piao.push(pio);
+	sz += 8 + pr.length;
+	if (!RE) {
+		pio = new_buf(8);
+		pio.write_shift(4, 0);
+		piao.unshift(pio);
+		var bufs = [new_buf(4)];
+		bufs[0].write_shift(4, entries.length);
+		for (i = 0; i < entries.length; ++i) {
+			var value = entries[i][0];
+			pr = new_buf(8 + 2 * (value.length + 1) + (value.length % 2 ? 0 : 2));
+			pr.write_shift(4, i + 2);
+			pr.write_shift(4, value.length + 1);
+			pr.write_shift(0, value, "dbcs");
+			while (pr.l != pr.length) pr.write_shift(1, 0);
+			bufs.push(pr);
+		}
+		pr = bconcat(bufs);
+		prop.unshift(pr);
+		sz += 8 + pr.length;
+	}
+	for (i = 0; i < entries.length; ++i) {
+		if (RE && !RE[entries[i][0]]) continue;
+		if (XLSPSSkip.indexOf(entries[i][0]) > -1 || PseudoPropsPairs.indexOf(entries[i][0]) > -1) continue;
+		if (entries[i][1] == null) continue;
+		var val = entries[i][1], idx = 0;
+		if (RE) {
+			idx = +RE[entries[i][0]];
+			var pinfo = PIDSI[idx];
+			if (pinfo.p == "version" && typeof val == "string") {
+				var arr = val.split(".");
+				val = (+arr[0] << 16) + (+arr[1] || 0);
+			}
+			pr = write_TypedPropertyValue(pinfo.t, val);
+		} else {
+			var T = guess_property_type(val);
+			if (T == -1) {
+				T = 31;
+				val = String(val);
+			}
+			pr = write_TypedPropertyValue(T, val);
+		}
+		prop.push(pr);
+		pio = new_buf(8);
+		pio.write_shift(4, !RE ? 2 + i : idx);
+		piao.push(pio);
+		sz += 8 + pr.length;
+	}
+	var w = 8 * (prop.length + 1);
+	for (i = 0; i < prop.length; ++i) {
+		piao[i].write_shift(4, w);
+		w += prop[i].length;
+	}
+	hdr.write_shift(4, sz);
+	hdr.write_shift(4, prop.length);
+	return bconcat([hdr].concat(piao).concat(prop));
+}
 function parse_PropertySetStream(file, PIDSI, clsid) {
 	var blob = file.content;
 	if (!blob) return {};
@@ -7793,9 +8620,34 @@ function parse_PropertySetStream(file, PIDSI, clsid) {
 	rval.FMTID = [FMTID0, FMTID1];
 	return rval;
 }
+function write_PropertySetStream(entries, clsid, RE, PIDSI, entries2, clsid2) {
+	var hdr = new_buf(entries2 ? 68 : 48);
+	var bufs = [hdr];
+	hdr.write_shift(2, 65534);
+	hdr.write_shift(2, 0);
+	hdr.write_shift(4, 842412599);
+	hdr.write_shift(16, CFB.utils.consts.HEADER_CLSID, "hex");
+	hdr.write_shift(4, entries2 ? 2 : 1);
+	hdr.write_shift(16, clsid, "hex");
+	hdr.write_shift(4, entries2 ? 68 : 48);
+	var ps0 = write_PropertySet(entries, RE, PIDSI);
+	bufs.push(ps0);
+	if (entries2) {
+		var ps1 = write_PropertySet(entries2, null, null);
+		hdr.write_shift(16, clsid2, "hex");
+		hdr.write_shift(4, 68 + ps0.length);
+		bufs.push(ps1);
+	}
+	return bconcat(bufs);
+}
 function parsenoop2(blob, length) {
 	blob.read_shift(length);
 	return null;
+}
+function writezeroes(n, o) {
+	if (!o) o = new_buf(n);
+	for (var j = 0; j < n; ++j) o.write_shift(1, 0);
+	return o;
 }
 function parslurp(blob, length, cb) {
 	var arr = [], target = blob.l + length;
@@ -7806,8 +8658,18 @@ function parslurp(blob, length, cb) {
 function parsebool(blob, length) {
 	return blob.read_shift(length) === 1;
 }
+function writebool(v, o) {
+	if (!o) o = new_buf(2);
+	o.write_shift(2, +!!v);
+	return o;
+}
 function parseuint16(blob) {
 	return blob.read_shift(2, "u");
+}
+function writeuint16(v, o) {
+	if (!o) o = new_buf(2);
+	o.write_shift(2, v);
+	return o;
 }
 function parseuint16a(blob, length) {
 	return parslurp(blob, length, parseuint16);
@@ -7815,6 +8677,12 @@ function parseuint16a(blob, length) {
 function parse_Bes(blob) {
 	var v = blob.read_shift(1);
 	return blob.read_shift(1) === 1 ? v : v === 1;
+}
+function write_Bes(v, t, o) {
+	if (!o) o = new_buf(2);
+	o.write_shift(1, t == "e" ? +v : +!!v);
+	o.write_shift(1, t == "e" ? 1 : 0);
+	return o;
 }
 function parse_ShortXLUnicodeString(blob, length, opts) {
 	var cch = blob.read_shift(opts && opts.biff >= 12 ? 2 : 1);
@@ -7851,6 +8719,16 @@ function parse_XLUnicodeRichExtendedString(blob) {
 	current_codepage = cp;
 	return z;
 }
+function write_XLUnicodeRichExtendedString(xlstr) {
+	var str = xlstr.t || "", nfmts = 1;
+	var hdr = new_buf(3 + (nfmts > 1 ? 2 : 0));
+	hdr.write_shift(2, str.length);
+	hdr.write_shift(1, (nfmts > 1 ? 8 : 0) | 1);
+	if (nfmts > 1) hdr.write_shift(2, nfmts);
+	var otext = new_buf(2 * str.length);
+	otext.write_shift(2 * str.length, str, "utf16le");
+	return bconcat([hdr, otext]);
+}
 function parse_XLUnicodeStringNoCch(blob, cch, opts) {
 	var retval;
 	if (opts) {
@@ -7877,6 +8755,13 @@ function parse_XLUnicodeString2(blob, length, opts) {
 		return "";
 	}
 	return blob.read_shift(cch, opts.biff <= 4 || !blob.lens ? "cpstr" : "sbcs-cont");
+}
+function write_XLUnicodeString(str, opts, o) {
+	if (!o) o = new_buf(3 + 2 * str.length);
+	o.write_shift(2, str.length);
+	o.write_shift(1, 1);
+	o.write_shift(31, str, "utf16le");
+	return o;
 }
 function parse_ControlInfo(blob) {
 	var flags = blob.read_shift(1);
@@ -7923,6 +8808,13 @@ function parse_HyperlinkString(blob) {
 	var len = blob.read_shift(4);
 	return len > 0 ? blob.read_shift(len, "utf16le").replace(chr0, "") : "";
 }
+function write_HyperlinkString(str, o) {
+	if (!o) o = new_buf(6 + str.length * 2);
+	o.write_shift(4, 1 + str.length);
+	for (var i = 0; i < str.length; ++i) o.write_shift(2, str.charCodeAt(i));
+	o.write_shift(2, 0);
+	return o;
+}
 function parse_Hyperlink(blob, length) {
 	var end = blob.l + length;
 	var sVer = blob.read_shift(4);
@@ -7948,6 +8840,54 @@ function parse_Hyperlink(blob, length) {
 	if (displayName) out.Tooltip = displayName;
 	return out;
 }
+function write_Hyperlink(hl) {
+	var out = new_buf(512), i = 0;
+	var Target = hl.Target;
+	if (Target.slice(0, 7) == "file://") Target = Target.slice(7);
+	var hashidx = Target.indexOf("#");
+	var F = hashidx > -1 ? 31 : 23;
+	switch (Target.charAt(0)) {
+		case "#":
+			F = 28;
+			break;
+		case ".": F &= -3;
+	}
+	out.write_shift(4, 2);
+	out.write_shift(4, F);
+	var data = [
+		8,
+		6815827,
+		6619237,
+		4849780,
+		83
+	];
+	for (i = 0; i < data.length; ++i) out.write_shift(4, data[i]);
+	if (F == 28) {
+		Target = Target.slice(1);
+		write_HyperlinkString(Target, out);
+	} else if (F & 2) {
+		data = "e0 c9 ea 79 f9 ba ce 11 8c 82 00 aa 00 4b a9 0b".split(" ");
+		for (i = 0; i < data.length; ++i) out.write_shift(1, parseInt(data[i], 16));
+		var Pretarget = hashidx > -1 ? Target.slice(0, hashidx) : Target;
+		out.write_shift(4, 2 * (Pretarget.length + 1));
+		for (i = 0; i < Pretarget.length; ++i) out.write_shift(2, Pretarget.charCodeAt(i));
+		out.write_shift(2, 0);
+		if (F & 8) write_HyperlinkString(hashidx > -1 ? Target.slice(hashidx + 1) : "", out);
+	} else {
+		data = "03 03 00 00 00 00 00 00 c0 00 00 00 00 00 00 46".split(" ");
+		for (i = 0; i < data.length; ++i) out.write_shift(1, parseInt(data[i], 16));
+		var P = 0;
+		while (Target.slice(P * 3, P * 3 + 3) == "../" || Target.slice(P * 3, P * 3 + 3) == "..\\") ++P;
+		out.write_shift(2, P);
+		out.write_shift(4, Target.length - 3 * P + 1);
+		for (i = 0; i < Target.length - 3 * P; ++i) out.write_shift(1, Target.charCodeAt(i + 3 * P) & 255);
+		out.write_shift(1, 0);
+		out.write_shift(2, 65535);
+		out.write_shift(2, 57005);
+		for (i = 0; i < 6; ++i) out.write_shift(4, 0);
+	}
+	return out.slice(0, out.l);
+}
 function parse_LongRGBA(blob) {
 	return [
 		blob.read_shift(1),
@@ -7972,6 +8912,13 @@ function parse_XLSCell(blob, length, opts) {
 		blob.l += 2;
 	} else ret.ixfe = blob.read_shift(2);
 	return ret;
+}
+function write_XLSCell(R, C, ixfe, o) {
+	if (!o) o = new_buf(6);
+	o.write_shift(2, R);
+	o.write_shift(2, C);
+	o.write_shift(2, ixfe || 0);
+	return o;
 }
 function parse_frtHeader(blob) {
 	var rt = blob.read_shift(2);
@@ -8022,6 +8969,14 @@ function parse_Ref8U(blob) {
 			r: rwLast
 		}
 	};
+}
+function write_Ref8U(r, o) {
+	if (!o) o = new_buf(8);
+	o.write_shift(2, r.s.r);
+	o.write_shift(2, r.e.r);
+	o.write_shift(2, r.s.c);
+	o.write_shift(2, r.e.c);
+	return o;
 }
 function parse_RefU(blob) {
 	var rwFirst = blob.read_shift(2);
@@ -8131,6 +9086,42 @@ function parse_BOF(blob, length) {
 	blob.read_shift(length);
 	return o;
 }
+function write_BOF(wb, t, o) {
+	var h = 1536, w = 16;
+	switch (o.bookType) {
+		case "biff8": break;
+		case "biff5":
+			h = 1280;
+			w = 8;
+			break;
+		case "biff4":
+			h = 4;
+			w = 6;
+			break;
+		case "biff3":
+			h = 3;
+			w = 6;
+			break;
+		case "biff2":
+			h = 2;
+			w = 4;
+			break;
+		case "xla": break;
+		default: throw new Error("unsupported BIFF version");
+	}
+	var out = new_buf(w);
+	out.write_shift(2, h);
+	out.write_shift(2, t);
+	if (w > 4) out.write_shift(2, 29282);
+	if (w > 6) out.write_shift(2, 1997);
+	if (w > 8) {
+		out.write_shift(2, 49161);
+		out.write_shift(2, 1);
+		out.write_shift(2, 1798);
+		out.write_shift(2, 0);
+	}
+	return out;
+}
 function parse_InterfaceHdr(blob, length) {
 	if (length === 0) return 1200;
 	if (blob.read_shift(2) !== 1200) {}
@@ -8145,6 +9136,16 @@ function parse_WriteAccess(blob, length, opts) {
 	var UserName = parse_XLUnicodeString2(blob, 0, opts);
 	blob.read_shift(length + l - blob.l);
 	return UserName;
+}
+function write_WriteAccess(s, opts) {
+	var b8 = !opts || opts.biff == 8;
+	var o = new_buf(b8 ? 112 : 54);
+	o.write_shift(opts.biff == 8 ? 2 : 1, 7);
+	if (b8) o.write_shift(1, 0);
+	o.write_shift(4, 859007059);
+	o.write_shift(4, 5458548 | (b8 ? 0 : 536870912));
+	while (o.l < o.length) o.write_shift(1, b8 ? 0 : 32);
+	return o;
 }
 function parse_WsBool(blob, length, opts) {
 	var flags = opts && opts.biff == 8 || length == 2 ? blob.read_shift(2) : (blob.l += length, 0);
@@ -8185,6 +9186,19 @@ function parse_BoundSheet8(blob, length, opts) {
 		name
 	};
 }
+function write_BoundSheet8(data, opts) {
+	var w = !opts || opts.biff >= 8 ? 2 : 1;
+	var o = new_buf(8 + w * data.name.length);
+	o.write_shift(4, data.pos);
+	o.write_shift(1, data.hs || 0);
+	o.write_shift(1, data.dt);
+	o.write_shift(1, data.name.length);
+	if (opts.biff >= 8) o.write_shift(1, 1);
+	o.write_shift(w * data.name.length, data.name, opts.biff < 8 ? "sbcs" : "utf16le");
+	var out = o.slice(0, o.l);
+	out.l = o.l;
+	return out;
+}
 function parse_SST(blob, length) {
 	var end = blob.l + length;
 	var cnt = blob.read_shift(4);
@@ -8194,6 +9208,18 @@ function parse_SST(blob, length) {
 	strs.Count = cnt;
 	strs.Unique = ucnt;
 	return strs;
+}
+function write_SST(sst, opts) {
+	var header = new_buf(8);
+	header.write_shift(4, sst.Count);
+	header.write_shift(4, sst.Unique);
+	var strs = [];
+	for (var j = 0; j < sst.length; ++j) strs[j] = write_XLUnicodeRichExtendedString(sst[j], opts);
+	var o = bconcat([header].concat(strs));
+	o.parts = [header.length].concat(strs.map(function(str) {
+		return str.length;
+	}));
+	return o;
 }
 function parse_ExtSST(blob, length) {
 	var extsst = {};
@@ -8253,9 +9279,32 @@ function parse_Window1(blob) {
 		TabRatio: wTabRatio
 	};
 }
+function write_Window1() {
+	var o = new_buf(18);
+	o.write_shift(2, 0);
+	o.write_shift(2, 0);
+	o.write_shift(2, 29280);
+	o.write_shift(2, 17600);
+	o.write_shift(2, 56);
+	o.write_shift(2, 0);
+	o.write_shift(2, 0);
+	o.write_shift(2, 1);
+	o.write_shift(2, 500);
+	return o;
+}
 function parse_Window2(blob, length, opts) {
 	if (opts && opts.biff >= 2 && opts.biff < 5) return {};
 	return { RTL: blob.read_shift(2) & 64 };
+}
+function write_Window2(view) {
+	var o = new_buf(18), f = 1718;
+	if (view && view.RTL) f |= 64;
+	o.write_shift(2, f);
+	o.write_shift(4, 0);
+	o.write_shift(4, 64);
+	o.write_shift(4, 0);
+	o.write_shift(4, 0);
+	return o;
 }
 function parse_Pane() {}
 function parse_Font(blob, length, opts) {
@@ -8274,10 +9323,30 @@ function parse_Font(blob, length, opts) {
 	o.name = parse_ShortXLUnicodeString(blob, 0, opts);
 	return o;
 }
+function write_Font(data, opts) {
+	var name = data.name || "Arial";
+	var b5 = opts && opts.biff == 5;
+	var o = new_buf(b5 ? 15 + name.length : 16 + 2 * name.length);
+	o.write_shift(2, (data.sz || 12) * 20);
+	o.write_shift(4, 0);
+	o.write_shift(2, 400);
+	o.write_shift(4, 0);
+	o.write_shift(2, 0);
+	o.write_shift(1, name.length);
+	if (!b5) o.write_shift(1, 1);
+	o.write_shift((b5 ? 1 : 2) * name.length, name, b5 ? "sbcs" : "utf16le");
+	return o;
+}
 function parse_LabelSst(blob, length, opts) {
 	var cell = parse_XLSCell(blob, length, opts);
 	cell.isst = blob.read_shift(4);
 	return cell;
+}
+function write_LabelSst(R, C, v, os) {
+	var o = new_buf(10);
+	write_XLSCell(R, C, os, o);
+	o.write_shift(4, v);
+	return o;
 }
 function parse_Label(blob, length, opts) {
 	if (opts.biffguess && opts.biff == 2) opts.biff = 5;
@@ -8286,10 +9355,43 @@ function parse_Label(blob, length, opts) {
 	cell.val = parse_XLUnicodeString(blob, target - blob.l, opts);
 	return cell;
 }
+function write_Label(R, C, v, os, opts) {
+	var b8 = !opts || opts.biff == 8;
+	var o = new_buf(8 + +b8 + (1 + b8) * v.length);
+	write_XLSCell(R, C, os, o);
+	o.write_shift(2, v.length);
+	if (b8) o.write_shift(1, 1);
+	o.write_shift((1 + b8) * v.length, v, b8 ? "utf16le" : "sbcs");
+	return o;
+}
 function parse_Format(blob, length, opts) {
 	return [blob.read_shift(2), parse_XLUnicodeString2(blob, 0, opts)];
 }
+function write_Format(i, f, opts, o) {
+	var b5 = opts && opts.biff == 5;
+	if (!o) o = new_buf(b5 ? 3 + f.length : 5 + 2 * f.length);
+	o.write_shift(2, i);
+	o.write_shift(b5 ? 1 : 2, f.length);
+	if (!b5) o.write_shift(1, 1);
+	o.write_shift((b5 ? 1 : 2) * f.length, f, b5 ? "sbcs" : "utf16le");
+	var out = o.length > o.l ? o.slice(0, o.l) : o;
+	if (out.l == null) out.l = out.length;
+	return out;
+}
 var parse_BIFF2Format = parse_XLUnicodeString2;
+function write_BIFF2Format(f) {
+	var o = new_buf(1 + f.length);
+	o.write_shift(1, f.length);
+	o.write_shift(f.length, f, "sbcs");
+	return o;
+}
+function write_BIFF4Format(f) {
+	var o = new_buf(3 + f.length);
+	o.l += 2;
+	o.write_shift(1, f.length);
+	o.write_shift(f.length, f, "sbcs");
+	return o;
+}
 function parse_Dimensions(blob, length, opts) {
 	var end = blob.l + length;
 	var w = opts.biff == 8 || !opts.biff ? 4 : 2;
@@ -8306,6 +9408,16 @@ function parse_Dimensions(blob, length, opts) {
 			c: C
 		}
 	};
+}
+function write_Dimensions(range, opts) {
+	var w = opts.biff == 8 || !opts.biff ? 4 : 2;
+	var o = new_buf(2 * w + 6);
+	o.write_shift(w, range.s.r);
+	o.write_shift(w, range.e.r + 1);
+	o.write_shift(2, range.s.c);
+	o.write_shift(2, range.e.c + 1);
+	o.write_shift(2, 0);
+	return o;
 }
 function parse_RK(blob) {
 	var rw = blob.read_shift(2), col = blob.read_shift(2);
@@ -8393,6 +9505,25 @@ function parse_XF(blob, length, opts) {
 	o.data = parse_CellStyleXF(blob, length, o.fStyle, opts);
 	return o;
 }
+function write_XF(data, ixfeP, opts, o) {
+	var b5 = opts && opts.biff == 5;
+	if (!o) o = new_buf(b5 ? 16 : 20);
+	o.write_shift(2, 0);
+	if (data.style) {
+		o.write_shift(2, data.numFmtId || 0);
+		o.write_shift(2, 65524);
+	} else {
+		o.write_shift(2, data.numFmtId || 0);
+		o.write_shift(2, ixfeP << 4);
+	}
+	var f = 0;
+	if (data.numFmtId > 0 && b5) f |= 1024;
+	o.write_shift(4, f);
+	o.write_shift(4, 0);
+	if (!b5) o.write_shift(4, 0);
+	o.write_shift(2, 0);
+	return o;
+}
 function parse_BIFF2XF(blob) {
 	var o = {};
 	o.ifnt = blob.read_shift(1);
@@ -8404,6 +9535,21 @@ function parse_BIFF2XF(blob) {
 	o.data = {};
 	return o;
 }
+function write_BIFF2XF(xf) {
+	var o = new_buf(4);
+	o.l += 2;
+	o.write_shift(1, xf.numFmtId);
+	o.l++;
+	return o;
+}
+function write_BIFF3XF(xf) {
+	var o = new_buf(12);
+	o.l++;
+	o.write_shift(1, xf.numFmtId);
+	o.l += 10;
+	return o;
+}
+var write_BIFF4XF = write_BIFF3XF;
 function parse_BIFF3XF(blob) {
 	var o = {};
 	o.ifnt = blob.read_shift(1);
@@ -8430,6 +9576,13 @@ function parse_Guts(blob) {
 	if (out[0] > 7 || out[1] > 7) throw new Error("Bad Gutters: " + out.join("|"));
 	return out;
 }
+function write_Guts(guts) {
+	var o = new_buf(8);
+	o.write_shift(4, 0);
+	o.write_shift(2, guts[0] ? guts[0] + 1 : 0);
+	o.write_shift(2, guts[1] ? guts[1] + 1 : 0);
+	return o;
+}
 function parse_BoolErr(blob, length, opts) {
 	var cell = parse_XLSCell(blob, 6, opts);
 	var val = parse_Bes(blob, 2);
@@ -8437,11 +9590,23 @@ function parse_BoolErr(blob, length, opts) {
 	cell.t = val === true || val === false ? "b" : "e";
 	return cell;
 }
+function write_BoolErr(R, C, v, os, opts, t) {
+	var o = new_buf(8);
+	write_XLSCell(R, C, os, o);
+	write_Bes(v, t, o);
+	return o;
+}
 function parse_Number(blob, length, opts) {
 	if (opts.biffguess && opts.biff == 2) opts.biff = 5;
 	var cell = parse_XLSCell(blob, 6, opts);
 	cell.val = parse_Xnum(blob, 8);
 	return cell;
+}
+function write_Number(R, C, v, os) {
+	var o = new_buf(14);
+	write_XLSCell(R, C, os, o);
+	write_Xnum(v, o);
+	return o;
 }
 var parse_XLHeaderFooter = parse_OptXLUnicodeString;
 function parse_SupBook(blob, length, opts) {
@@ -8588,11 +9753,25 @@ function parse_Note(blob, length, opts) {
 	}
 	return parse_NoteSh(blob, length, opts);
 }
+function write_NOTE_BIFF2(text, R, C, len) {
+	var o = new_buf(6 + (len || text.length));
+	o.write_shift(2, R);
+	o.write_shift(2, C);
+	o.write_shift(2, len || text.length);
+	o.write_shift(text.length, text, "sbcs");
+	return o;
+}
 function parse_MergeCells(blob, length) {
 	var merges = [];
 	var cmcs = blob.read_shift(2);
 	while (cmcs--) merges.push(parse_Ref8U(blob, length));
 	return merges;
+}
+function write_MergeCells(merges) {
+	var o = new_buf(2 + merges.length * 8);
+	o.write_shift(2, merges.length);
+	for (var i = 0; i < merges.length; ++i) write_Ref8U(merges[i], o);
+	return o;
 }
 function parse_Obj(blob, length, opts) {
 	if (opts && opts.biff < 8) return parse_BIFF5Obj(blob, length, opts);
@@ -8683,6 +9862,17 @@ function parse_HLink(blob, length) {
 	blob.l += 16;
 	return [ref, parse_Hyperlink(blob, length - 24)];
 }
+function write_HLink(hl) {
+	var O = new_buf(24);
+	var ref = decode_cell(hl[0]);
+	O.write_shift(2, ref.r);
+	O.write_shift(2, ref.r);
+	O.write_shift(2, ref.c);
+	O.write_shift(2, ref.c);
+	var clsid = "d0 c9 ea 79 f9 ba ce 11 8c 82 00 aa 00 4b a9 0b".split(" ");
+	for (var i = 0; i < 16; ++i) O.write_shift(1, parseInt(clsid[i], 16));
+	return bconcat([O, write_Hyperlink(hl[1])]);
+}
 function parse_HLinkTooltip(blob, length) {
 	blob.read_shift(2);
 	var ref = parse_Ref8U(blob, 8);
@@ -8690,11 +9880,30 @@ function parse_HLinkTooltip(blob, length) {
 	wzTooltip = wzTooltip.replace(chr0, "");
 	return [ref, wzTooltip];
 }
+function write_HLinkTooltip(hl) {
+	var TT = hl[1].Tooltip;
+	var O = new_buf(10 + 2 * (TT.length + 1));
+	O.write_shift(2, 2048);
+	var ref = decode_cell(hl[0]);
+	O.write_shift(2, ref.r);
+	O.write_shift(2, ref.r);
+	O.write_shift(2, ref.c);
+	O.write_shift(2, ref.c);
+	for (var i = 0; i < TT.length; ++i) O.write_shift(2, TT.charCodeAt(i));
+	O.write_shift(2, 0);
+	return O;
+}
 function parse_Country(blob) {
 	var o = [0, 0], d = blob.read_shift(2);
 	o[0] = CountryEnum[d] || d;
 	d = blob.read_shift(2);
 	o[1] = CountryEnum[d] || d;
+	return o;
+}
+function write_Country(o) {
+	if (!o) o = new_buf(4);
+	o.write_shift(2, 1);
+	o.write_shift(2, 1);
 	return o;
 }
 function parse_ClrtClient(blob) {
@@ -8738,6 +9947,20 @@ function parse_ColInfo(blob, length, opts) {
 	if (opts.biff >= 5 || !opts.biff) o.level = flags >> 8 & 7;
 	return o;
 }
+function write_ColInfo(col, idx) {
+	var o = new_buf(12);
+	o.write_shift(2, idx);
+	o.write_shift(2, idx);
+	o.write_shift(2, col.width * 256);
+	o.write_shift(2, 0);
+	var f = 0;
+	if (col.hidden) f |= 1;
+	o.write_shift(1, f);
+	f = col.level || 0;
+	o.write_shift(1, f);
+	o.write_shift(2, 0);
+	return o;
+}
 function parse_Setup(blob, length) {
 	var o = {};
 	if (length < 32) return o;
@@ -8758,6 +9981,11 @@ function parse_ShtProps(blob, length, opts) {
 	if (d & 16) def.area = true;
 	return def;
 }
+function write_RRTabId(n) {
+	var out = new_buf(2 * n);
+	for (var i = 0; i < n; ++i) out.write_shift(2, i + 1);
+	return out;
+}
 var parse_Blank = parse_XLSCell;
 var parse_Scl = parseuint16a;
 var parse_String = parse_XLUnicodeString;
@@ -8774,6 +10002,15 @@ function parse_ImData(blob) {
 	blob.l += lcb;
 	return o;
 }
+function write_BIFF2Cell(out, r, c, ixfe, ifmt) {
+	if (!out) out = new_buf(7);
+	out.write_shift(2, r);
+	out.write_shift(2, c);
+	out.write_shift(1, ixfe || 0);
+	out.write_shift(1, ifmt || 0);
+	out.write_shift(1, 0);
+	return out;
+}
 function parse_BIFF2STR(blob, length, opts) {
 	if (opts.biffguess && opts.biff == 5) opts.biff = 2;
 	var cell = parse_XLSCell(blob, 7, opts);
@@ -8789,12 +10026,24 @@ function parse_BIFF2NUM(blob, length, opts) {
 	cell.val = num;
 	return cell;
 }
+function write_BIFF2NUM(r, c, val, ixfe, ifmt) {
+	var out = new_buf(15);
+	write_BIFF2Cell(out, r, c, ixfe || 0, ifmt || 0);
+	out.write_shift(8, val, "f");
+	return out;
+}
 function parse_BIFF2INT(blob, length, opts) {
 	var cell = parse_XLSCell(blob, 7, opts);
 	var num = blob.read_shift(2);
 	cell.t = "n";
 	cell.val = num;
 	return cell;
+}
+function write_BIFF2INT(r, c, val, ixfe, ifmt) {
+	var out = new_buf(9);
+	write_BIFF2Cell(out, r, c, ixfe || 0, ifmt || 0);
+	out.write_shift(2, val);
+	return out;
 }
 function parse_BIFF2STRING(blob) {
 	var cch = blob.read_shift(1);
@@ -11861,6 +13110,36 @@ function parse_sst_xml(data, opts) {
 	}
 	return s;
 }
+var straywsregex = /^\s|\s$|[\t\n\r]/;
+function write_sst_xml(sst, opts) {
+	if (!opts.bookSST) return "";
+	var o = [XML_HEADER];
+	o[o.length] = writextag("sst", null, {
+		xmlns: XMLNS_main[0],
+		count: sst.Count,
+		uniqueCount: sst.Unique
+	});
+	for (var i = 0; i != sst.length; ++i) {
+		if (sst[i] == null) continue;
+		var s = sst[i];
+		var sitag = "<si>";
+		if (s.r) sitag += s.r;
+		else {
+			sitag += "<t";
+			if (!s.t) s.t = "";
+			if (typeof s.t !== "string") s.t = String(s.t);
+			if (s.t.match(straywsregex)) sitag += " xml:space=\"preserve\"";
+			sitag += ">" + escapexml(s.t) + "</t>";
+		}
+		sitag += "</si>";
+		o[o.length] = sitag;
+	}
+	if (o.length > 2) {
+		o[o.length] = "</sst>";
+		o[1] = o[1].replace("/>", ">");
+	}
+	return o.join("");
+}
 function parse_BrtBeginSst(data) {
 	return [data.read_shift(4), data.read_shift(4)];
 }
@@ -11889,6 +13168,20 @@ function parse_sst_bin(data, opts) {
 		}
 	});
 	return s;
+}
+function write_BrtBeginSst(sst, o) {
+	if (!o) o = new_buf(8);
+	o.write_shift(4, sst.Count);
+	o.write_shift(4, sst.Unique);
+	return o;
+}
+var write_BrtSSTItem = write_RichStr;
+function write_sst_bin(sst) {
+	var ba = buf_array();
+	write_record(ba, 159, write_BrtBeginSst(sst));
+	for (var i = 0; i < sst.length; ++i) write_record(ba, 19, write_BrtSSTItem(sst[i]));
+	write_record(ba, 160);
+	return ba.end();
 }
 function _JS2ANSI(str) {
 	var o = [], oo = str.split("");
@@ -12435,6 +13728,33 @@ function rtf_to_workbook(d, opts) {
 	wb.bookType = "rtf";
 	return wb;
 }
+function sheet_to_rtf(ws, opts) {
+	var o = ["{\\rtf1\\ansi"];
+	if (!ws["!ref"]) return o[0] + "}";
+	var r = safe_decode_range(ws["!ref"]), cell;
+	var dense = ws["!data"] != null, row = [];
+	for (var R = r.s.r; R <= r.e.r; ++R) {
+		o.push("\\trowd\\trautofit1");
+		for (var C = r.s.c; C <= r.e.c; ++C) o.push("\\cellx" + (C + 1));
+		o.push("\\pard\\intbl");
+		if (dense) row = ws["!data"][R] || [];
+		for (C = r.s.c; C <= r.e.c; ++C) {
+			var coord = encode_cell({
+				r: R,
+				c: C
+			});
+			cell = dense ? row[C] : ws[coord];
+			if (!cell || cell.v == null && (!cell.f || cell.F)) {
+				o.push(" \\cell");
+				continue;
+			}
+			o.push(" " + (cell.w || (format_cell(cell), cell.w) || "").replace(/[\r\n]/g, "\\par "));
+			o.push("\\cell");
+		}
+		o.push("\\pard\\intbl\\row");
+	}
+	return o.join("") + "}";
+}
 function hex2RGB(h) {
 	var o = h.slice(h[0] === "#" ? 1 : 0).slice(0, 6);
 	return [
@@ -12932,6 +14252,24 @@ function parse_numFmts(t, styles, opts) {
 		}
 	}
 }
+function write_numFmts(NF) {
+	var o = ["<numFmts>"];
+	[
+		[5, 8],
+		[23, 26],
+		[41, 44],
+		[50, 392]
+	].forEach(function(r) {
+		for (var i = r[0]; i <= r[1]; ++i) if (NF[i] != null) o[o.length] = writextag("numFmt", null, {
+			numFmtId: i,
+			formatCode: escapexml(NF[i])
+		});
+	});
+	if (o.length === 1) return "";
+	o[o.length] = "</numFmts>";
+	o[0] = writextag("numFmts", null, { count: o.length - 2 }).replace("/>", ">");
+	return o.join("");
+}
 var cellXF_uint = [
 	"numFmtId",
 	"fillId",
@@ -13014,6 +14352,17 @@ function parse_cellXfs(t, styles, opts) {
 		}
 	});
 }
+function write_cellXfs(cellXfs) {
+	var o = [];
+	o[o.length] = writextag("cellXfs", null);
+	cellXfs.forEach(function(c) {
+		o[o.length] = writextag("xf", null, c);
+	});
+	o[o.length] = "</cellXfs>";
+	if (o.length === 2) return "";
+	o[0] = writextag("cellXfs", null, { count: o.length - 2 }).replace("/>", ">");
+	return o.join("");
+}
 var parse_sty_xml = /*#__PURE__*/ (function make_pstyx() {
 	return function parse_sty_xml(data, themes, opts) {
 		var styles = {};
@@ -13028,8 +14377,36 @@ var parse_sty_xml = /*#__PURE__*/ (function make_pstyx() {
 		return styles;
 	};
 })();
+function write_sty_xml(wb, opts) {
+	var o = [XML_HEADER, writextag("styleSheet", null, {
+		"xmlns": XMLNS_main[0],
+		"xmlns:vt": XMLNS.vt
+	})], w;
+	if (wb.SSF && (w = write_numFmts(wb.SSF)) != null) o[o.length] = w;
+	o[o.length] = "<fonts count=\"1\"><font><sz val=\"12\"/><color theme=\"1\"/><name val=\"Calibri\"/><family val=\"2\"/><scheme val=\"minor\"/></font></fonts>";
+	o[o.length] = "<fills count=\"2\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill></fills>";
+	o[o.length] = "<borders count=\"1\"><border><left/><right/><top/><bottom/><diagonal/></border></borders>";
+	o[o.length] = "<cellStyleXfs count=\"1\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/></cellStyleXfs>";
+	if (w = write_cellXfs(opts.cellXfs)) o[o.length] = w;
+	o[o.length] = "<cellStyles count=\"1\"><cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/></cellStyles>";
+	o[o.length] = "<dxfs count=\"0\"/>";
+	o[o.length] = "<tableStyles count=\"0\" defaultTableStyle=\"TableStyleMedium9\" defaultPivotStyle=\"PivotStyleMedium4\"/>";
+	if (o.length > 2) {
+		o[o.length] = "</styleSheet>";
+		o[1] = o[1].replace("/>", ">");
+	}
+	return o.join("");
+}
 function parse_BrtFmt(data, length) {
 	return [data.read_shift(2), parse_XLWideString(data, length - 2)];
+}
+function write_BrtFmt(i, f, o) {
+	if (!o) o = new_buf(6 + 4 * f.length);
+	o.write_shift(2, i);
+	write_XLWideString(f, o);
+	var out = o.length > o.l ? o.slice(0, o.l) : o;
+	if (o.l == null) o.l = o.length;
+	return out;
 }
 function parse_BrtFont(data, length, opts) {
 	var out = {};
@@ -13065,7 +14442,67 @@ function parse_BrtFont(data, length, opts) {
 	out.name = parse_XLWideString(data, length - 21);
 	return out;
 }
+function write_BrtFont(font, o) {
+	if (!o) o = new_buf(153);
+	o.write_shift(2, font.sz * 20);
+	write_FontFlags(font, o);
+	o.write_shift(2, font.bold ? 700 : 400);
+	var sss = 0;
+	if (font.vertAlign == "superscript") sss = 1;
+	else if (font.vertAlign == "subscript") sss = 2;
+	o.write_shift(2, sss);
+	o.write_shift(1, font.underline || 0);
+	o.write_shift(1, font.family || 0);
+	o.write_shift(1, font.charset || 0);
+	o.write_shift(1, 0);
+	write_BrtColor(font.color, o);
+	var scheme = 0;
+	if (font.scheme == "major") scheme = 1;
+	if (font.scheme == "minor") scheme = 2;
+	o.write_shift(1, scheme);
+	write_XLWideString(font.name, o);
+	return o.length > o.l ? o.slice(0, o.l) : o;
+}
+var XLSBFillPTNames = [
+	"none",
+	"solid",
+	"mediumGray",
+	"darkGray",
+	"lightGray",
+	"darkHorizontal",
+	"darkVertical",
+	"darkDown",
+	"darkUp",
+	"darkGrid",
+	"darkTrellis",
+	"lightHorizontal",
+	"lightVertical",
+	"lightDown",
+	"lightUp",
+	"lightGrid",
+	"lightTrellis",
+	"gray125",
+	"gray0625"
+];
+var rev_XLSBFillPTNames;
 var parse_BrtFill = parsenoop;
+function write_BrtFill(fill, o) {
+	if (!o) o = new_buf(84);
+	if (!rev_XLSBFillPTNames) rev_XLSBFillPTNames = evert(XLSBFillPTNames);
+	var fls = rev_XLSBFillPTNames[fill.patternType];
+	if (fls == null) fls = 40;
+	o.write_shift(4, fls);
+	var j = 0;
+	if (fls != 40) {
+		write_BrtColor({ auto: 1 }, o);
+		write_BrtColor({ auto: 1 }, o);
+		for (; j < 12; ++j) o.write_shift(4, 0);
+	} else {
+		for (; j < 4; ++j) o.write_shift(4, 0);
+		for (; j < 12; ++j) o.write_shift(4, 0);
+	}
+	return o.length > o.l ? o.slice(0, o.l) : o;
+}
 function parse_BrtXF(data, length) {
 	var tgt = data.l + length;
 	var ixfeParent = data.read_shift(2);
@@ -13076,7 +14513,56 @@ function parse_BrtXF(data, length) {
 		numFmtId: ifmt
 	};
 }
+function write_BrtXF(data, ixfeP, o) {
+	if (!o) o = new_buf(16);
+	o.write_shift(2, ixfeP || 0);
+	o.write_shift(2, data.numFmtId || 0);
+	o.write_shift(2, 0);
+	o.write_shift(2, 0);
+	o.write_shift(2, 0);
+	o.write_shift(1, 0);
+	o.write_shift(1, 0);
+	o.write_shift(1, 0);
+	o.write_shift(1, 0);
+	o.write_shift(1, 0);
+	o.write_shift(1, 0);
+	return o;
+}
+function write_Blxf(data, o) {
+	if (!o) o = new_buf(10);
+	o.write_shift(1, 0);
+	o.write_shift(1, 0);
+	o.write_shift(4, 0);
+	o.write_shift(4, 0);
+	return o;
+}
 var parse_BrtBorder = parsenoop;
+function write_BrtBorder(border, o) {
+	if (!o) o = new_buf(51);
+	o.write_shift(1, 0);
+	write_Blxf(null, o);
+	write_Blxf(null, o);
+	write_Blxf(null, o);
+	write_Blxf(null, o);
+	write_Blxf(null, o);
+	return o.length > o.l ? o.slice(0, o.l) : o;
+}
+function write_BrtStyle(style, o) {
+	if (!o) o = new_buf(52);
+	o.write_shift(4, style.xfId);
+	o.write_shift(2, 1);
+	o.write_shift(1, +style.builtinId);
+	o.write_shift(1, 0);
+	write_XLNullableWideString(style.name || "", o);
+	return o.length > o.l ? o.slice(0, o.l) : o;
+}
+function write_BrtBeginTableStyles(cnt, defTableStyle, defPivotStyle) {
+	var o = new_buf(2052);
+	o.write_shift(4, cnt);
+	write_XLNullableWideString(defTableStyle, o);
+	write_XLNullableWideString(defPivotStyle, o);
+	return o.length > o.l ? o.slice(0, o.l) : o;
+}
 function parse_sty_bin(data, themes, opts) {
 	var styles = {};
 	styles.NumberFmt = [];
@@ -13131,6 +14617,106 @@ function parse_sty_bin(data, themes, opts) {
 		}
 	});
 	return styles;
+}
+function write_FMTS_bin(ba, NF) {
+	if (!NF) return;
+	var cnt = 0;
+	[
+		[5, 8],
+		[23, 26],
+		[41, 44],
+		[50, 392]
+	].forEach(function(r) {
+		for (var i = r[0]; i <= r[1]; ++i) if (NF[i] != null) ++cnt;
+	});
+	if (cnt == 0) return;
+	write_record(ba, 615, write_UInt32LE(cnt));
+	[
+		[5, 8],
+		[23, 26],
+		[41, 44],
+		[50, 392]
+	].forEach(function(r) {
+		for (var i = r[0]; i <= r[1]; ++i) if (NF[i] != null) write_record(ba, 44, write_BrtFmt(i, NF[i]));
+	});
+	write_record(ba, 616);
+}
+function write_FONTS_bin(ba) {
+	var cnt = 1;
+	if (cnt == 0) return;
+	write_record(ba, 611, write_UInt32LE(cnt));
+	write_record(ba, 43, write_BrtFont({
+		sz: 12,
+		color: { theme: 1 },
+		name: "Calibri",
+		family: 2,
+		scheme: "minor"
+	}));
+	write_record(ba, 612);
+}
+function write_FILLS_bin(ba) {
+	var cnt = 2;
+	if (cnt == 0) return;
+	write_record(ba, 603, write_UInt32LE(cnt));
+	write_record(ba, 45, write_BrtFill({ patternType: "none" }));
+	write_record(ba, 45, write_BrtFill({ patternType: "gray125" }));
+	write_record(ba, 604);
+}
+function write_BORDERS_bin(ba) {
+	var cnt = 1;
+	if (cnt == 0) return;
+	write_record(ba, 613, write_UInt32LE(cnt));
+	write_record(ba, 46, write_BrtBorder({}));
+	write_record(ba, 614);
+}
+function write_CELLSTYLEXFS_bin(ba) {
+	write_record(ba, 626, write_UInt32LE(1));
+	write_record(ba, 47, write_BrtXF({
+		numFmtId: 0,
+		fontId: 0,
+		fillId: 0,
+		borderId: 0
+	}, 65535));
+	write_record(ba, 627);
+}
+function write_CELLXFS_bin(ba, data) {
+	write_record(ba, 617, write_UInt32LE(data.length));
+	data.forEach(function(c) {
+		write_record(ba, 47, write_BrtXF(c, 0));
+	});
+	write_record(ba, 618);
+}
+function write_STYLES_bin(ba) {
+	write_record(ba, 619, write_UInt32LE(1));
+	write_record(ba, 48, write_BrtStyle({
+		xfId: 0,
+		builtinId: 0,
+		name: "Normal"
+	}));
+	write_record(ba, 620);
+}
+function write_DXFS_bin(ba) {
+	write_record(ba, 505, write_UInt32LE(0));
+	write_record(ba, 506);
+}
+function write_TABLESTYLES_bin(ba) {
+	write_record(ba, 508, write_BrtBeginTableStyles(0, "TableStyleMedium9", "PivotStyleMedium4"));
+	write_record(ba, 509);
+}
+function write_sty_bin(wb, opts) {
+	var ba = buf_array();
+	write_record(ba, 278);
+	write_FMTS_bin(ba, wb.SSF);
+	write_FONTS_bin(ba, wb);
+	write_FILLS_bin(ba, wb);
+	write_BORDERS_bin(ba, wb);
+	write_CELLSTYLEXFS_bin(ba, wb);
+	write_CELLXFS_bin(ba, opts.cellXfs);
+	write_STYLES_bin(ba, wb);
+	write_DXFS_bin(ba, wb);
+	write_TABLESTYLES_bin(ba, wb);
+	write_record(ba, 279);
+	return ba.end();
 }
 var XLSXThemeClrScheme = [
 	"</a:lt1>",
@@ -13480,15 +15066,43 @@ function parse_BrtMdtinfo(data, length) {
 		name: parse_XLWideString(data, length - 8)
 	};
 }
+function write_BrtMdtinfo(data) {
+	var o = new_buf(12 + 2 * data.name.length);
+	o.write_shift(4, data.flags);
+	o.write_shift(4, data.version);
+	write_XLWideString(data.name, o);
+	return o.slice(0, o.l);
+}
 function parse_BrtMdb(data) {
 	var out = [];
 	var cnt = data.read_shift(4);
 	while (cnt-- > 0) out.push([data.read_shift(4), data.read_shift(4)]);
 	return out;
 }
+function write_BrtMdb(mdb) {
+	var o = new_buf(4 + 8 * mdb.length);
+	o.write_shift(4, mdb.length);
+	for (var i = 0; i < mdb.length; ++i) {
+		o.write_shift(4, mdb[i][0]);
+		o.write_shift(4, mdb[i][1]);
+	}
+	return o;
+}
+function write_BrtBeginEsfmd(cnt, name) {
+	var o = new_buf(8 + 2 * name.length);
+	o.write_shift(4, cnt);
+	write_XLWideString(name, o);
+	return o.slice(0, o.l);
+}
 function parse_BrtBeginEsmdb(data) {
 	data.l += 4;
 	return data.read_shift(4) != 0;
+}
+function write_BrtBeginEsmdb(cnt, cm) {
+	var o = new_buf(8);
+	o.write_shift(4, cnt);
+	o.write_shift(4, cm ? 1 : 0);
+	return o;
 }
 function parse_xlmeta_bin(data, name, _opts) {
 	var out = {
@@ -13535,6 +15149,30 @@ function parse_xlmeta_bin(data, name, _opts) {
 		}
 	});
 	return out;
+}
+function write_xlmeta_bin() {
+	var ba = buf_array();
+	write_record(ba, 332);
+	write_record(ba, 334, write_UInt32LE(1));
+	write_record(ba, 335, write_BrtMdtinfo({
+		name: "XLDAPR",
+		version: 12e4,
+		flags: 3496657072
+	}));
+	write_record(ba, 336);
+	write_record(ba, 339, write_BrtBeginEsfmd(1, "XLDAPR"));
+	write_record(ba, 52);
+	write_record(ba, 35, write_UInt32LE(514));
+	write_record(ba, 4096, write_UInt32LE(0));
+	write_record(ba, 4097, writeuint16(1));
+	write_record(ba, 36);
+	write_record(ba, 53);
+	write_record(ba, 340);
+	write_record(ba, 337, write_BrtBeginEsmdb(1, true));
+	write_record(ba, 51, write_BrtMdb([[1, 0]]));
+	write_record(ba, 338);
+	write_record(ba, 333);
+	return ba.end();
 }
 function parse_xlmeta_xml(data, name, opts) {
 	var out = {
@@ -13607,6 +15245,11 @@ function parse_xlmeta_xml(data, name, opts) {
 		return x;
 	});
 	return out;
+}
+function write_xlmeta_xml() {
+	var o = [XML_HEADER];
+	o.push("<metadata xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:xlrd=\"http://schemas.microsoft.com/office/spreadsheetml/2017/richdata\" xmlns:xda=\"http://schemas.microsoft.com/office/spreadsheetml/2017/dynamicarray\">\n  <metadataTypes count=\"1\">\n    <metadataType name=\"XLDAPR\" minSupportedVersion=\"120000\" copy=\"1\" pasteAll=\"1\" pasteValues=\"1\" merge=\"1\" splitFirst=\"1\" rowColShift=\"1\" clearFormats=\"1\" clearComments=\"1\" assign=\"1\" coerce=\"1\" cellMeta=\"1\"/>\n  </metadataTypes>\n  <futureMetadata name=\"XLDAPR\" count=\"1\">\n    <bk>\n      <extLst>\n        <ext uri=\"{bdbb8cdc-fa1e-496e-a857-3c3f30c029c3}\">\n          <xda:dynamicArrayProperties fDynamic=\"1\" fCollapsed=\"0\"/>\n        </ext>\n      </extLst>\n    </bk>\n  </futureMetadata>\n  <cellMetadata count=\"1\">\n    <bk>\n      <rc t=\"1\" v=\"0\"/>\n    </bk>\n  </cellMetadata>\n</metadata>");
+	return o.join("");
 }
 function parse_cc_xml(data) {
 	var d = [];
@@ -13739,6 +15382,90 @@ function parse_vml(data, sheet, comments) {
 		}
 	});
 }
+function write_vml(rId, comments, ws) {
+	var csize = [21600, 21600];
+	var bbox = [
+		"m0,0l0",
+		csize[1],
+		csize[0],
+		csize[1],
+		csize[0],
+		"0xe"
+	].join(",");
+	var o = [writextag("xml", null, {
+		"xmlns:v": XLMLNS.v,
+		"xmlns:o": XLMLNS.o,
+		"xmlns:x": XLMLNS.x,
+		"xmlns:mv": XLMLNS.mv
+	}).replace(/\/>/, ">"), writextag("o:shapelayout", writextag("o:idmap", null, {
+		"v:ext": "edit",
+		"data": rId
+	}), { "v:ext": "edit" })];
+	var _shapeid = 65536 * rId;
+	var _comments = comments || [];
+	if (_comments.length > 0) o.push(writextag("v:shapetype", [writextag("v:stroke", null, { joinstyle: "miter" }), writextag("v:path", null, {
+		gradientshapeok: "t",
+		"o:connecttype": "rect"
+	})].join(""), {
+		id: "_x0000_t202",
+		coordsize: csize.join(","),
+		"o:spt": 202,
+		path: bbox
+	}));
+	_comments.forEach(function(x) {
+		++_shapeid;
+		o.push(write_vml_comment(x, _shapeid));
+	});
+	o.push("</xml>");
+	return o.join("");
+}
+function write_vml_comment(x, _shapeid, ws) {
+	var c = decode_cell(x[0]);
+	var fillopts = {
+		"color2": "#BEFF82",
+		"type": "gradient"
+	};
+	if (fillopts.type == "gradient") fillopts.angle = "-180";
+	var fillxml = writextag("v:fill", fillopts.type == "gradient" ? writextag("o:fill", null, {
+		type: "gradientUnscaled",
+		"v:ext": "view"
+	}) : null, fillopts);
+	return [
+		"<v:shape" + wxt_helper({
+			id: "_x0000_s" + _shapeid,
+			type: "#_x0000_t202",
+			style: "position:absolute; margin-left:80pt;margin-top:5pt;width:104pt;height:64pt;z-index:10" + (x[1].hidden ? ";visibility:hidden" : ""),
+			fillcolor: "#ECFAD4",
+			strokecolor: "#edeaa1"
+		}) + ">",
+		fillxml,
+		writextag("v:shadow", null, {
+			on: "t",
+			"obscured": "t"
+		}),
+		writextag("v:path", null, { "o:connecttype": "none" }),
+		"<v:textbox><div style=\"text-align:left\"></div></v:textbox>",
+		"<x:ClientData ObjectType=\"Note\">",
+		"<x:MoveWithCells/>",
+		"<x:SizeWithCells/>",
+		writetag("x:Anchor", [
+			c.c + 1,
+			0,
+			c.r + 1,
+			0,
+			c.c + 3,
+			20,
+			c.r + 5,
+			20
+		].join(",")),
+		writetag("x:AutoFill", "False"),
+		writetag("x:Row", String(c.r)),
+		writetag("x:Column", String(c.c)),
+		x[1].hidden ? "" : "<x:Visible/>",
+		"</x:ClientData>",
+		"</v:shape>"
+	].join("");
+}
 function sheet_insert_comments(sheet, comments, threaded, people) {
 	var dense = sheet["!data"] != null;
 	var cell;
@@ -13818,6 +15545,58 @@ function parse_comments_xml(data, opts) {
 	});
 	return commentList;
 }
+function write_comments_xml(data) {
+	var o = [XML_HEADER, writextag("comments", null, { "xmlns": XMLNS_main[0] })];
+	var iauthor = [];
+	o.push("<authors>");
+	data.forEach(function(x) {
+		x[1].forEach(function(w) {
+			var a = escapexml(w.a);
+			if (iauthor.indexOf(a) == -1) {
+				iauthor.push(a);
+				o.push("<author>" + a + "</author>");
+			}
+			if (w.T && w.ID && iauthor.indexOf("tc=" + w.ID) == -1) {
+				iauthor.push("tc=" + w.ID);
+				o.push("<author>tc=" + w.ID + "</author>");
+			}
+		});
+	});
+	if (iauthor.length == 0) {
+		iauthor.push("SheetJ5");
+		o.push("<author>SheetJ5</author>");
+	}
+	o.push("</authors>");
+	o.push("<commentList>");
+	data.forEach(function(d) {
+		var lastauthor = 0, ts = [], tcnt = 0;
+		if (d[1][0] && d[1][0].T && d[1][0].ID) lastauthor = iauthor.indexOf("tc=" + d[1][0].ID);
+		d[1].forEach(function(c) {
+			if (c.a) lastauthor = iauthor.indexOf(escapexml(c.a));
+			if (c.T) ++tcnt;
+			ts.push(c.t == null ? "" : escapexml(c.t));
+		});
+		if (tcnt === 0) d[1].forEach(function(c) {
+			o.push("<comment ref=\"" + d[0] + "\" authorId=\"" + iauthor.indexOf(escapexml(c.a)) + "\"><text>");
+			o.push(writetag("t", c.t == null ? "" : escapexml(c.t)));
+			o.push("</text></comment>");
+		});
+		else {
+			if (d[1][0] && d[1][0].T && d[1][0].ID) lastauthor = iauthor.indexOf("tc=" + d[1][0].ID);
+			o.push("<comment ref=\"" + d[0] + "\" authorId=\"" + lastauthor + "\"><text>");
+			var t = "Comment:\n    " + ts[0] + "\n";
+			for (var i = 1; i < ts.length; ++i) t += "Reply:\n    " + ts[i] + "\n";
+			o.push(writetag("t", escapexml(t)));
+			o.push("</text></comment>");
+		}
+	});
+	o.push("</commentList>");
+	if (o.length > 2) {
+		o[o.length] = "</comments>";
+		o[1] = o[1].replace("/>", ">");
+	}
+	return o.join("");
+}
 function parse_tcmnt_xml(data, opts) {
 	var out = [];
 	var pass = false, comment = {}, tidx = 0;
@@ -13868,6 +15647,30 @@ function parse_tcmnt_xml(data, opts) {
 	});
 	return out;
 }
+function write_tcmnt_xml(comments, people, opts) {
+	var o = [XML_HEADER, writextag("ThreadedComments", null, { "xmlns": XMLNS.TCMNT }).replace(/[\/]>/, ">")];
+	comments.forEach(function(carr) {
+		var rootid = "";
+		(carr[1] || []).forEach(function(c, idx) {
+			if (!c.T) {
+				delete c.ID;
+				return;
+			}
+			if (c.a && people.indexOf(c.a) == -1) people.push(c.a);
+			var tcopts = {
+				ref: carr[0],
+				id: "{54EE7951-7262-4200-6969-" + ("000000000000" + opts.tcid++).slice(-12) + "}"
+			};
+			if (idx == 0) rootid = tcopts.id;
+			else tcopts.parentId = rootid;
+			c.ID = tcopts.id;
+			if (c.a) tcopts.personId = "{54EE7950-7262-4200-6969-" + ("000000000000" + people.indexOf(c.a)).slice(-12) + "}";
+			o.push(writextag("threadedComment", writetag("text", c.t || ""), tcopts));
+		});
+	});
+	o.push("</ThreadedComments>");
+	return o.join("");
+}
 function parse_people_xml(data, opts) {
 	var out = [];
 	var pass = false;
@@ -13900,6 +15703,22 @@ function parse_people_xml(data, opts) {
 	});
 	return out;
 }
+function write_people_xml(people) {
+	var o = [XML_HEADER, writextag("personList", null, {
+		"xmlns": XMLNS.TCMNT,
+		"xmlns:x": XMLNS_main[0]
+	}).replace(/[\/]>/, ">")];
+	people.forEach(function(person, idx) {
+		o.push(writextag("person", null, {
+			displayName: person,
+			id: "{54EE7950-7262-4200-6969-" + ("000000000000" + idx).slice(-12) + "}",
+			userId: person,
+			providerId: "None"
+		}));
+	});
+	o.push("</personList>");
+	return o.join("");
+}
 function parse_BrtBeginComment(data) {
 	var out = {};
 	out.iauthor = data.read_shift(4);
@@ -13909,7 +15728,20 @@ function parse_BrtBeginComment(data) {
 	data.l += 16;
 	return out;
 }
+function write_BrtBeginComment(data, o) {
+	if (o == null) o = new_buf(36);
+	o.write_shift(4, data[1].iauthor);
+	write_UncheckedRfX(data[0], o);
+	o.write_shift(4, 0);
+	o.write_shift(4, 0);
+	o.write_shift(4, 0);
+	o.write_shift(4, 0);
+	return o;
+}
 var parse_BrtCommentAuthor = parse_XLWideString;
+function write_BrtCommentAuthor(data) {
+	return write_XLWideString(data.slice(0, 54));
+}
 function parse_comments_bin(data, opts) {
 	var out = [];
 	var authors = [];
@@ -13950,6 +15782,44 @@ function parse_comments_bin(data, opts) {
 	});
 	return out;
 }
+function write_comments_bin(data) {
+	var ba = buf_array();
+	var iauthor = [];
+	write_record(ba, 628);
+	write_record(ba, 630);
+	data.forEach(function(comment) {
+		comment[1].forEach(function(c) {
+			if (iauthor.indexOf(c.a) > -1) return;
+			iauthor.push(c.a.slice(0, 54));
+			write_record(ba, 632, write_BrtCommentAuthor(c.a));
+			if (c.T && c.ID && iauthor.indexOf("tc=" + c.ID) == -1) {
+				iauthor.push("tc=" + c.ID);
+				write_record(ba, 632, write_BrtCommentAuthor("tc=" + c.ID));
+			}
+		});
+	});
+	write_record(ba, 631);
+	write_record(ba, 633);
+	data.forEach(function(comment) {
+		comment[1].forEach(function(c) {
+			var _ia = -1;
+			if (c.ID) _ia = iauthor.indexOf("tc=" + c.ID);
+			if (_ia == -1 && comment[1][0].T && comment[1][0].ID) _ia = iauthor.indexOf("tc=" + comment[1][0].ID);
+			if (_ia == -1) _ia = iauthor.indexOf(c.a);
+			c.iauthor = _ia;
+			write_record(ba, 635, write_BrtBeginComment([{
+				s: decode_cell(comment[0]),
+				e: decode_cell(comment[0])
+			}, c]));
+			if (c.t && c.t.length > 0) write_record(ba, 637, write_BrtCommentText(c));
+			write_record(ba, 636);
+			delete c.iauthor;
+		});
+	});
+	write_record(ba, 634);
+	write_record(ba, 629);
+	return ba.end();
+}
 var CT_VBA = "application/vnd.ms-office.vbaProject";
 function make_vba_xls(cfb) {
 	var newcfb = CFB.utils.cfb_new({ root: "R" });
@@ -13960,6 +15830,20 @@ function make_vba_xls(cfb) {
 	});
 	return CFB.write(newcfb);
 }
+function fill_vba_xls(cfb, vba) {
+	vba.FullPaths.forEach(function(p, i) {
+		if (i == 0) return;
+		var newpath = p.replace(/^[\/]*[^\/]*[\/]/, "/_VBA_PROJECT_CUR/");
+		if (newpath.slice(-1) !== "/") CFB.utils.cfb_add(cfb, newpath, vba.FileIndex[i].content);
+	});
+}
+var VBAFMTS = [
+	"xlsb",
+	"xlsm",
+	"xlam",
+	"biff8",
+	"xla"
+];
 function parse_ds_bin() {
 	return { "!type": "dialog" };
 }
@@ -15364,6 +17248,18 @@ function parse_FormulaValue(blob) {
 	}
 	return [];
 }
+function write_FormulaValue(value) {
+	if (value == null) {
+		var o = new_buf(8);
+		o.write_shift(1, 3);
+		o.write_shift(1, 0);
+		o.write_shift(2, 0);
+		o.write_shift(2, 0);
+		o.write_shift(2, 65535);
+		return o;
+	} else if (typeof value == "number") return write_Xnum(value);
+	return write_Xnum(0);
+}
 function parse_Formula(blob, length, opts) {
 	var end = blob.l + length;
 	var cell = parse_XLSCell(blob, 6, opts);
@@ -15382,6 +17278,21 @@ function parse_Formula(blob, length, opts) {
 		tt: val[1]
 	};
 }
+function write_Formula(cell, R, C, opts, os) {
+	var o1 = write_XLSCell(R, C, os);
+	var o2 = write_FormulaValue(cell.v);
+	var o3 = new_buf(6);
+	o3.write_shift(2, 33);
+	o3.write_shift(4, 0);
+	var bf = new_buf(cell.bf.length);
+	for (var i = 0; i < cell.bf.length; ++i) bf[i] = cell.bf[i];
+	return bconcat([
+		o1,
+		o2,
+		o3,
+		bf
+	]);
+}
 function parse_XLSBParsedFormula(data, length, opts) {
 	var rgce = parse_Rgce(data, data.read_shift(4), opts);
 	var cb = data.read_shift(4);
@@ -15391,6 +17302,177 @@ var parse_XLSBArrayParsedFormula = parse_XLSBParsedFormula;
 var parse_XLSBCellParsedFormula = parse_XLSBParsedFormula;
 var parse_XLSBNameParsedFormula = parse_XLSBParsedFormula;
 var parse_XLSBSharedParsedFormula = parse_XLSBParsedFormula;
+function write_XLSBFormulaNum(val) {
+	if ((val | 0) == val && val < Math.pow(2, 16) && val >= 0) {
+		var oint = new_buf(11);
+		oint.write_shift(4, 3);
+		oint.write_shift(1, 30);
+		oint.write_shift(2, val);
+		oint.write_shift(4, 0);
+		return oint;
+	}
+	var num = new_buf(17);
+	num.write_shift(4, 11);
+	num.write_shift(1, 31);
+	num.write_shift(8, val);
+	num.write_shift(4, 0);
+	return num;
+}
+function write_XLSBFormulaErr(val) {
+	var oint = new_buf(10);
+	oint.write_shift(4, 2);
+	oint.write_shift(1, 28);
+	oint.write_shift(1, val);
+	oint.write_shift(4, 0);
+	return oint;
+}
+function write_XLSBFormulaBool(val) {
+	var oint = new_buf(10);
+	oint.write_shift(4, 2);
+	oint.write_shift(1, 29);
+	oint.write_shift(1, val ? 1 : 0);
+	oint.write_shift(4, 0);
+	return oint;
+}
+function write_XLSBFormulaStr(val) {
+	var preamble = new_buf(7);
+	preamble.write_shift(4, 3 + 2 * val.length);
+	preamble.write_shift(1, 23);
+	preamble.write_shift(2, val.length);
+	var body = new_buf(2 * val.length);
+	body.write_shift(2 * val.length, val, "utf16le");
+	var postamble = new_buf(4);
+	postamble.write_shift(4, 0);
+	return bconcat([
+		preamble,
+		body,
+		postamble
+	]);
+}
+function write_XLSBFormulaRef(str) {
+	var cell = decode_cell(str);
+	var out = new_buf(15);
+	out.write_shift(4, 7);
+	out.write_shift(1, 36);
+	out.write_shift(4, cell.r);
+	out.write_shift(2, cell.c | (str.charAt(0) == "$" ? 0 : 1) << 14 | (str.match(/\$\d/) ? 0 : 1) << 15);
+	out.write_shift(4, 0);
+	return out;
+}
+function write_XLSBFormulaRef3D(str, wb) {
+	var lastbang = str.lastIndexOf("!");
+	var sname = str.slice(0, lastbang);
+	str = str.slice(lastbang + 1);
+	var cell = decode_cell(str);
+	if (sname.charAt(0) == "'") sname = sname.slice(1, -1).replace(/''/g, "'");
+	var out = new_buf(17);
+	out.write_shift(4, 9);
+	out.write_shift(1, 58);
+	out.write_shift(2, 2 + wb.SheetNames.map(function(n) {
+		return n.toLowerCase();
+	}).indexOf(sname.toLowerCase()));
+	out.write_shift(4, cell.r);
+	out.write_shift(2, cell.c | (str.charAt(0) == "$" ? 0 : 1) << 14 | (str.match(/\$\d/) ? 0 : 1) << 15);
+	out.write_shift(4, 0);
+	return out;
+}
+function write_XLSBFormulaRefErr3D(str, wb) {
+	var lastbang = str.lastIndexOf("!");
+	var sname = str.slice(0, lastbang);
+	str = str.slice(lastbang + 1);
+	if (sname.charAt(0) == "'") sname = sname.slice(1, -1).replace(/''/g, "'");
+	var out = new_buf(17);
+	out.write_shift(4, 9);
+	out.write_shift(1, 60);
+	out.write_shift(2, 2 + wb.SheetNames.map(function(n) {
+		return n.toLowerCase();
+	}).indexOf(sname.toLowerCase()));
+	out.write_shift(4, 0);
+	out.write_shift(2, 0);
+	out.write_shift(4, 0);
+	return out;
+}
+function write_XLSBFormulaRange(_str) {
+	var parts = _str.split(":"), str = parts[0];
+	var out = new_buf(23);
+	out.write_shift(4, 15);
+	str = parts[0];
+	var cell = decode_cell(str);
+	out.write_shift(1, 36);
+	out.write_shift(4, cell.r);
+	out.write_shift(2, cell.c | (str.charAt(0) == "$" ? 0 : 1) << 14 | (str.match(/\$\d/) ? 0 : 1) << 15);
+	out.write_shift(4, 0);
+	str = parts[1];
+	cell = decode_cell(str);
+	out.write_shift(1, 36);
+	out.write_shift(4, cell.r);
+	out.write_shift(2, cell.c | (str.charAt(0) == "$" ? 0 : 1) << 14 | (str.match(/\$\d/) ? 0 : 1) << 15);
+	out.write_shift(4, 0);
+	out.write_shift(1, 17);
+	out.write_shift(4, 0);
+	return out;
+}
+function write_XLSBFormulaRangeWS(_str, wb) {
+	var lastbang = _str.lastIndexOf("!");
+	var sname = _str.slice(0, lastbang);
+	_str = _str.slice(lastbang + 1);
+	if (sname.charAt(0) == "'") sname = sname.slice(1, -1).replace(/''/g, "'");
+	var parts = _str.split(":");
+	var out = new_buf(27);
+	out.write_shift(4, 19);
+	var str = parts[0], cell = decode_cell(str);
+	out.write_shift(1, 58);
+	out.write_shift(2, 2 + wb.SheetNames.map(function(n) {
+		return n.toLowerCase();
+	}).indexOf(sname.toLowerCase()));
+	out.write_shift(4, cell.r);
+	out.write_shift(2, cell.c | (str.charAt(0) == "$" ? 0 : 1) << 14 | (str.match(/\$\d/) ? 0 : 1) << 15);
+	str = parts[1];
+	cell = decode_cell(str);
+	out.write_shift(1, 58);
+	out.write_shift(2, 2 + wb.SheetNames.map(function(n) {
+		return n.toLowerCase();
+	}).indexOf(sname.toLowerCase()));
+	out.write_shift(4, cell.r);
+	out.write_shift(2, cell.c | (str.charAt(0) == "$" ? 0 : 1) << 14 | (str.match(/\$\d/) ? 0 : 1) << 15);
+	out.write_shift(1, 17);
+	out.write_shift(4, 0);
+	return out;
+}
+function write_XLSBFormulaArea3D(_str, wb) {
+	var lastbang = _str.lastIndexOf("!");
+	var sname = _str.slice(0, lastbang);
+	_str = _str.slice(lastbang + 1);
+	if (sname.charAt(0) == "'") sname = sname.slice(1, -1).replace(/''/g, "'");
+	var range = decode_range(_str);
+	var out = new_buf(23);
+	out.write_shift(4, 15);
+	out.write_shift(1, 59);
+	out.write_shift(2, 2 + wb.SheetNames.map(function(n) {
+		return n.toLowerCase();
+	}).indexOf(sname.toLowerCase()));
+	out.write_shift(4, range.s.r);
+	out.write_shift(4, range.e.r);
+	out.write_shift(2, range.s.c);
+	out.write_shift(2, range.e.c);
+	out.write_shift(4, 0);
+	return out;
+}
+function write_XLSBFormula(val, wb) {
+	if (typeof val == "number") return write_XLSBFormulaNum(val);
+	if (typeof val == "boolean") return write_XLSBFormulaBool(val);
+	if (/^#(DIV\/0!|GETTING_DATA|N\/A|NAME\?|NULL!|NUM!|REF!|VALUE!)$/.test(val)) return write_XLSBFormulaErr(+RBErr[val]);
+	if (val.match(/^\$?(?:[A-W][A-Z]{2}|X[A-E][A-Z]|XF[A-D]|[A-Z]{1,2})\$?(?:10[0-3]\d{4}|104[0-7]\d{3}|1048[0-4]\d{2}|10485[0-6]\d|104857[0-6]|[1-9]\d{0,5})$/)) return write_XLSBFormulaRef(val);
+	if (val.match(/^\$?(?:[A-W][A-Z]{2}|X[A-E][A-Z]|XF[A-D]|[A-Z]{1,2})\$?(?:10[0-3]\d{4}|104[0-7]\d{3}|1048[0-4]\d{2}|10485[0-6]\d|104857[0-6]|[1-9]\d{0,5}):\$?(?:[A-W][A-Z]{2}|X[A-E][A-Z]|XF[A-D]|[A-Z]{1,2})\$?(?:10[0-3]\d{4}|104[0-7]\d{3}|1048[0-4]\d{2}|10485[0-6]\d|104857[0-6]|[1-9]\d{0,5})$/)) return write_XLSBFormulaRange(val);
+	if (val.match(/^#REF!\$?(?:[A-W][A-Z]{2}|X[A-E][A-Z]|XF[A-D]|[A-Z]{1,2})\$?(?:10[0-3]\d{4}|104[0-7]\d{3}|1048[0-4]\d{2}|10485[0-6]\d|104857[0-6]|[1-9]\d{0,5}):\$?(?:[A-W][A-Z]{2}|X[A-E][A-Z]|XF[A-D]|[A-Z]{1,2})\$?(?:10[0-3]\d{4}|104[0-7]\d{3}|1048[0-4]\d{2}|10485[0-6]\d|104857[0-6]|[1-9]\d{0,5})$/)) return write_XLSBFormulaArea3D(val, wb);
+	if (val.match(/^(?:'[^\\\/?*\[\]:]*'|[^'][^\\\/?*\[\]:'`~!@#$%^()\-=+{}|;,<.>]*)!\$?(?:[A-W][A-Z]{2}|X[A-E][A-Z]|XF[A-D]|[A-Z]{1,2})\$?(?:10[0-3]\d{4}|104[0-7]\d{3}|1048[0-4]\d{2}|10485[0-6]\d|104857[0-6]|[1-9]\d{0,5})$/)) return write_XLSBFormulaRef3D(val, wb);
+	if (val.match(/^(?:'[^\\\/?*\[\]:]*'|[^'][^\\\/?*\[\]:'`~!@#$%^()\-=+{}|;,<.>]*)!\$?(?:[A-W][A-Z]{2}|X[A-E][A-Z]|XF[A-D]|[A-Z]{1,2})\$?(?:10[0-3]\d{4}|104[0-7]\d{3}|1048[0-4]\d{2}|10485[0-6]\d|104857[0-6]|[1-9]\d{0,5}):\$?(?:[A-W][A-Z]{2}|X[A-E][A-Z]|XF[A-D]|[A-Z]{1,2})\$?(?:10[0-3]\d{4}|104[0-7]\d{3}|1048[0-4]\d{2}|10485[0-6]\d|104857[0-6]|[1-9]\d{0,5})$/)) return write_XLSBFormulaRangeWS(val, wb);
+	if (/^(?:'[^\\\/?*\[\]:]*'|[^'][^\\\/?*\[\]:'`~!@#$%^()\-=+{}|;,<.>]*)!#REF!$/.test(val)) return write_XLSBFormulaRefErr3D(val, wb);
+	if (/^".*"$/.test(val)) return write_XLSBFormulaStr(val);
+	if (/^[+-]\d+$/.test(val)) return write_XLSBFormulaNum(parseInt(val, 10));
+	throw "Formula |" + val + "| not supported for XLSB";
+}
+var write_XLSBNameParsedFormula = write_XLSBFormula;
 var Cetab = {
 	0: "BEEP",
 	1: "OPEN",
@@ -16543,6 +18625,9 @@ function ods_to_csf_formula(f) {
 	f = f.replace(/\[.(#[A-Z]*[?!])\]/g, "$1");
 	return f.replace(/[;~]/g, ",").replace(/\|/g, ";");
 }
+function csf_to_ods_formula(f) {
+	return ("of:=" + f.replace(crefregex, "$1[.$2$3$4$5]").replace(/\]:\[/g, ":")).replace(/;/g, "|").replace(/,/g, ";");
+}
 function ods_to_csf_3D(r) {
 	r = r.replace(/\$'([^']|'')+'/g, function($$) {
 		return $$.slice(1);
@@ -16553,8 +18638,58 @@ function ods_to_csf_3D(r) {
 	var a = r.split(":");
 	return [a[0].split(".")[0], a[0].split(".")[1] + (a.length > 1 ? ":" + (a[1].split(".")[1] || a[1].split(".")[0]) : "")];
 }
+function csf_to_ods_3D(r) {
+	return r.replace(/!/, ".").replace(/:/, ":.");
+}
 var strs = {};
 var _ssfopts = {};
+var browser_has_Map = typeof Map !== "undefined";
+function get_sst_id(sst, str, rev) {
+	var i = 0, len = sst.length;
+	if (rev) {
+		if (browser_has_Map ? rev.has(str) : Object.prototype.hasOwnProperty.call(rev, str)) {
+			var revarr = browser_has_Map ? rev.get(str) : rev[str];
+			for (; i < revarr.length; ++i) if (sst[revarr[i]].t === str) {
+				sst.Count++;
+				return revarr[i];
+			}
+		}
+	} else for (; i < len; ++i) if (sst[i].t === str) {
+		sst.Count++;
+		return i;
+	}
+	sst[len] = { t: str };
+	sst.Count++;
+	sst.Unique++;
+	if (rev) {
+		if (browser_has_Map) {
+			if (!rev.has(str)) rev.set(str, []);
+			rev.get(str).push(len);
+		} else {
+			if (!Object.prototype.hasOwnProperty.call(rev, str)) rev[str] = [];
+			rev[str].push(len);
+		}
+	}
+	return len;
+}
+function col_obj_w(C, col) {
+	var p = {
+		min: C + 1,
+		max: C + 1
+	};
+	var wch = -1;
+	if (col.MDW) MDW = col.MDW;
+	if (col.width != null) p.customWidth = 1;
+	else if (col.wpx != null) wch = px2char(col.wpx);
+	else if (col.wch != null) wch = col.wch;
+	if (wch > -1) {
+		p.width = char2width(wch);
+		p.customWidth = 1;
+	} else if (col.width != null) p.width = col.width;
+	if (col.hidden) p.hidden = true;
+	if (col.level != null) p.outlineLevel = p.level = col.level;
+	return p;
+}
 function default_margins(margins, mode) {
 	if (!margins) return;
 	var defs = [
@@ -16579,6 +18714,28 @@ function default_margins(margins, mode) {
 	if (margins.bottom == null) margins.bottom = defs[3];
 	if (margins.header == null) margins.header = defs[4];
 	if (margins.footer == null) margins.footer = defs[5];
+}
+function get_cell_style(styles, cell, opts) {
+	var z = opts.revssf[cell.z != null ? cell.z : "General"];
+	var i = 60, len = styles.length;
+	if (z == null && opts.ssf) {
+		for (; i < 392; ++i) if (opts.ssf[i] == null) {
+			SSF__load(cell.z, i);
+			opts.ssf[i] = cell.z;
+			opts.revssf[cell.z] = z = i;
+			break;
+		}
+	}
+	for (i = 0; i != len; ++i) if (styles[i].numFmtId === z) return i;
+	styles[len] = {
+		numFmtId: z,
+		fontId: 0,
+		fillId: 0,
+		borderId: 0,
+		xfId: 0,
+		applyNumberFormat: 1
+	};
+	return len;
 }
 function safe_format(p, fmtid, fillid, opts, themes, styles, date1904) {
 	try {
@@ -16619,6 +18776,12 @@ function safe_format(p, fmtid, fillid, opts, themes, styles, date1904) {
 		}
 	} catch (e) {
 		if (opts.WTF && styles.Fills) throw e;
+	}
+}
+function check_ws(ws, sname, i) {
+	if (ws && ws["!ref"]) {
+		var range = safe_decode_range(ws["!ref"]);
+		if (range.e.c < range.s.c || range.e.r < range.s.r) throw new Error("Bad range (" + i + "): " + ws["!ref"]);
 	}
 }
 function parse_ws_xml_dim(ws, s) {
@@ -16700,6 +18863,12 @@ function parse_ws_xml(data, opts, idx, rels, wb, themes, styles) {
 	if (rels["!id"][s["!legrel"]]) s["!legdrawel"] = rels["!id"][s["!legrel"]];
 	return s;
 }
+function write_ws_xml_merges(merges) {
+	if (merges.length === 0) return "";
+	var o = "<mergeCells count=\"" + merges.length + "\">";
+	for (var i = 0; i != merges.length; ++i) o += "<mergeCell ref=\"" + encode_range(merges[i]) + "\"/>";
+	return o + "</mergeCells>";
+}
 function parse_ws_xml_sheetpr(sheetPr, s, wb, idx) {
 	var data = parsexmltag(sheetPr);
 	if (!wb.Sheets[idx]) wb.Sheets[idx] = {};
@@ -16707,6 +18876,59 @@ function parse_ws_xml_sheetpr(sheetPr, s, wb, idx) {
 }
 function parse_ws_xml_sheetpr2(sheetPr, body, s, wb, idx) {
 	parse_ws_xml_sheetpr(sheetPr.slice(0, sheetPr.indexOf(">")), s, wb, idx);
+}
+function write_ws_xml_sheetpr(ws, wb, idx, opts, o) {
+	var needed = false;
+	var props = {}, payload = null;
+	if (opts.bookType !== "xlsx" && wb.vbaraw) {
+		var cname = wb.SheetNames[idx];
+		try {
+			if (wb.Workbook) cname = wb.Workbook.Sheets[idx].CodeName || cname;
+		} catch (e) {}
+		needed = true;
+		props.codeName = utf8write(escapexml(cname));
+	}
+	if (ws && ws["!outline"]) {
+		var outlineprops = {
+			summaryBelow: 1,
+			summaryRight: 1
+		};
+		if (ws["!outline"].above) outlineprops.summaryBelow = 0;
+		if (ws["!outline"].left) outlineprops.summaryRight = 0;
+		payload = (payload || "") + writextag("outlinePr", null, outlineprops);
+	}
+	if (!needed && !payload) return;
+	o[o.length] = writextag("sheetPr", payload, props);
+}
+var sheetprot_deffalse = [
+	"objects",
+	"scenarios",
+	"selectLockedCells",
+	"selectUnlockedCells"
+];
+var sheetprot_deftrue = [
+	"formatColumns",
+	"formatRows",
+	"formatCells",
+	"insertColumns",
+	"insertRows",
+	"insertHyperlinks",
+	"deleteColumns",
+	"deleteRows",
+	"sort",
+	"autoFilter",
+	"pivotTables"
+];
+function write_ws_xml_protection(sp) {
+	var o = { sheet: 1 };
+	sheetprot_deffalse.forEach(function(n) {
+		if (sp[n] != null && sp[n]) o[n] = "1";
+	});
+	sheetprot_deftrue.forEach(function(n) {
+		if (sp[n] != null && !sp[n]) o[n] = "0";
+	});
+	if (sp.password) o.password = crypto_CreatePasswordVerifier_Method1(sp.password).toString(16).toUpperCase();
+	return writextag("sheetProtection", null, o);
 }
 function parse_ws_xml_hlinks(s, data, rels) {
 	var dense = s["!data"] != null;
@@ -16763,6 +18985,10 @@ function parse_ws_xml_margins(margin) {
 	});
 	return o;
 }
+function write_ws_xml_margins(margin) {
+	default_margins(margin);
+	return writextag("pageMargins", null, margin);
+}
 function parse_ws_xml_cols(columns, cols) {
 	var seencol = false;
 	for (var coli = 0; coli != cols.length; ++coli) {
@@ -16781,8 +19007,41 @@ function parse_ws_xml_cols(columns, cols) {
 		while (colm <= colM) columns[colm++] = dup(coll);
 	}
 }
+function write_ws_xml_cols(ws, cols) {
+	var o = ["<cols>"], col;
+	for (var i = 0; i != cols.length; ++i) {
+		if (!(col = cols[i])) continue;
+		o[o.length] = writextag("col", null, col_obj_w(i, col));
+	}
+	o[o.length] = "</cols>";
+	return o.join("");
+}
 function parse_ws_xml_autofilter(data) {
 	return { ref: (data.match(/ref="([^"]*)"/) || [])[1] };
+}
+function write_ws_xml_autofilter(data, ws, wb, idx) {
+	var ref = typeof data.ref == "string" ? data.ref : encode_range(data.ref);
+	if (!wb.Workbook) wb.Workbook = { Sheets: [] };
+	if (!wb.Workbook.Names) wb.Workbook.Names = [];
+	var names = wb.Workbook.Names;
+	var range = decode_range(ref);
+	if (range.s.r == range.e.r) {
+		range.e.r = decode_range(ws["!ref"]).e.r;
+		ref = encode_range(range);
+	}
+	for (var i = 0; i < names.length; ++i) {
+		var name = names[i];
+		if (name.Name != "_xlnm._FilterDatabase") continue;
+		if (name.Sheet != idx) continue;
+		name.Ref = formula_quote_sheet_name(wb.SheetNames[idx]) + "!" + fix_range(ref);
+		break;
+	}
+	if (i == names.length) names.push({
+		Name: "_xlnm._FilterDatabase",
+		Sheet: idx,
+		Ref: "'" + wb.SheetNames[idx] + "'!" + ref
+	});
+	return writextag("autoFilter", null, { ref });
 }
 var sviewregex = /<(?:\w:)?sheetView(?:[^<>a-z][^<>]*)?\/?>/g;
 function parse_ws_xml_sheetviews(data, wb) {
@@ -16793,6 +19052,93 @@ function parse_ws_xml_sheetviews(data, wb) {
 		if (+tag.zoomScale) wb.Views[i].zoom = +tag.zoomScale;
 		if (tag.rightToLeft && parsexmlbool(tag.rightToLeft)) wb.Views[i].RTL = true;
 	});
+}
+function write_ws_xml_sheetviews(ws, opts, idx, wb) {
+	var sview = { workbookViewId: "0" };
+	if ((((wb || {}).Workbook || {}).Views || [])[0]) sview.rightToLeft = wb.Workbook.Views[0].RTL ? "1" : "0";
+	return writextag("sheetViews", writextag("sheetView", null, sview), {});
+}
+function write_ws_xml_cell(cell, ref, ws, opts, idx, wb, date1904) {
+	if (cell.c) ws["!comments"].push([ref, cell.c]);
+	if ((cell.v === void 0 || cell.t === "z" && !(opts || {}).sheetStubs) && typeof cell.f !== "string" && typeof cell.z == "undefined") return "";
+	var vv = "";
+	var oldt = cell.t, oldv = cell.v;
+	if (cell.t !== "z") switch (cell.t) {
+		case "b":
+			vv = cell.v ? "1" : "0";
+			break;
+		case "n":
+			if (isNaN(cell.v)) {
+				cell.t = "e";
+				vv = BErr[cell.v = 36];
+			} else if (!isFinite(cell.v)) {
+				cell.t = "e";
+				vv = BErr[cell.v = 7];
+			} else vv = "" + cell.v;
+			break;
+		case "e":
+			vv = BErr[cell.v];
+			break;
+		case "d":
+			if (opts && opts.cellDates) {
+				var _vv = parseDate(cell.v, date1904);
+				vv = _vv.toISOString();
+				if (_vv.getUTCFullYear() < 1900) vv = vv.slice(vv.indexOf("T") + 1).replace("Z", "");
+			} else {
+				cell = dup(cell);
+				cell.t = "n";
+				vv = "" + (cell.v = datenum(parseDate(cell.v, date1904), date1904));
+			}
+			if (typeof cell.z === "undefined") cell.z = table_fmt[14];
+			break;
+		default:
+			vv = cell.v;
+			break;
+	}
+	var v = cell.t == "z" || cell.v == null ? "" : writetag("v", escapexml(vv)), o = { r: ref };
+	var os = get_cell_style(opts.cellXfs, cell, opts);
+	if (os !== 0) o.s = os;
+	switch (cell.t) {
+		case "n": break;
+		case "d":
+			o.t = "d";
+			break;
+		case "b":
+			o.t = "b";
+			break;
+		case "e":
+			o.t = "e";
+			break;
+		case "z": break;
+		default:
+			if (cell.v == null) {
+				delete cell.t;
+				break;
+			}
+			if (cell.v.length > 32767) throw new Error("Text length must not exceed 32767 characters");
+			if (opts && opts.bookSST) {
+				v = writetag("v", "" + get_sst_id(opts.Strings, cell.v, opts.revStrings));
+				o.t = "s";
+				break;
+			} else o.t = "str";
+	}
+	if (cell.t != oldt) {
+		cell.t = oldt;
+		cell.v = oldv;
+	}
+	if (typeof cell.f == "string" && cell.f) {
+		var ff = cell.F && cell.F.slice(0, ref.length) == ref ? {
+			t: "array",
+			ref: cell.F
+		} : null;
+		v = writextag("f", escapexml(cell.f), ff) + (cell.v != null ? v : "");
+	}
+	if (cell.l) {
+		cell.l.display = escapexml(vv);
+		ws["!links"].push([ref, cell.l]);
+	}
+	if (cell.D) o.cm = 1;
+	return writextag("c", v, o);
 }
 var parse_ws_xml_data = /*#__PURE__*/ (function() {
 	var cellregex = /<(?:\w+:)?c[ \/>]/, rowregex = /<\/(?:\w+:)?row>/;
@@ -17029,6 +19375,137 @@ var parse_ws_xml_data = /*#__PURE__*/ (function() {
 		if (rows.length > 0) s["!rows"] = rows;
 	};
 })();
+function write_ws_xml_data(ws, opts, idx, wb) {
+	var o = [], r = [], range = safe_decode_range(ws["!ref"]), cell = "", ref, rr = "", cols = [], R = 0, C = 0, rows = ws["!rows"];
+	var dense = ws["!data"] != null, data = dense ? ws["!data"] : [];
+	var params = { r: rr }, row, height = -1;
+	var date1904 = (((wb || {}).Workbook || {}).WBProps || {}).date1904;
+	for (C = range.s.c; C <= range.e.c; ++C) cols[C] = encode_col(C);
+	for (R = range.s.r; R <= range.e.r; ++R) {
+		r = [];
+		rr = encode_row(R);
+		var data_R = dense ? data[R] : [];
+		for (C = range.s.c; C <= range.e.c; ++C) {
+			ref = cols[C] + rr;
+			var _cell = dense ? data_R[C] : ws[ref];
+			if (_cell === void 0) continue;
+			if ((cell = write_ws_xml_cell(_cell, ref, ws, opts, idx, wb, date1904)) != null) r.push(cell);
+		}
+		if (r.length > 0 || rows && rows[R]) {
+			params = { r: rr };
+			if (rows && rows[R]) {
+				row = rows[R];
+				if (row.hidden) params.hidden = 1;
+				height = -1;
+				if (row.hpx) height = px2pt(row.hpx);
+				else if (row.hpt) height = row.hpt;
+				if (height > -1) {
+					params.ht = height;
+					params.customHeight = 1;
+				}
+				if (row.level) params.outlineLevel = row.level;
+			}
+			o[o.length] = writextag("row", r.join(""), params);
+		}
+	}
+	if (rows) {
+		for (; R < rows.length; ++R) if (rows && rows[R]) {
+			params = { r: R + 1 };
+			row = rows[R];
+			if (row.hidden) params.hidden = 1;
+			height = -1;
+			if (row.hpx) height = px2pt(row.hpx);
+			else if (row.hpt) height = row.hpt;
+			if (height > -1) {
+				params.ht = height;
+				params.customHeight = 1;
+			}
+			if (row.level) params.outlineLevel = row.level;
+			o[o.length] = writextag("row", "", params);
+		}
+	}
+	return o.join("");
+}
+function write_ws_xml(idx, opts, wb, rels) {
+	var o = [XML_HEADER, writextag("worksheet", null, {
+		"xmlns": XMLNS_main[0],
+		"xmlns:r": XMLNS.r
+	})];
+	var s = wb.SheetNames[idx], sidx = 0, rdata = "";
+	var ws = wb.Sheets[s];
+	if (ws == null) ws = {};
+	var ref = ws["!ref"] || "A1";
+	var range = safe_decode_range(ref);
+	if (range.e.c > 16383 || range.e.r > 1048575) {
+		if (opts.WTF) throw new Error("Range " + ref + " exceeds format limit A1:XFD1048576");
+		range.e.c = Math.min(range.e.c, 16383);
+		range.e.r = Math.min(range.e.c, 1048575);
+		ref = encode_range(range);
+	}
+	if (!rels) rels = {};
+	ws["!comments"] = [];
+	var _drawing = [];
+	write_ws_xml_sheetpr(ws, wb, idx, opts, o);
+	o[o.length] = writextag("dimension", null, { "ref": ref });
+	o[o.length] = write_ws_xml_sheetviews(ws, opts, idx, wb);
+	if (opts.sheetFormat) o[o.length] = writextag("sheetFormatPr", null, {
+		defaultRowHeight: opts.sheetFormat.defaultRowHeight || "16",
+		baseColWidth: opts.sheetFormat.baseColWidth || "10",
+		outlineLevelRow: opts.sheetFormat.outlineLevelRow || "7"
+	});
+	if (ws["!cols"] != null && ws["!cols"].length > 0) o[o.length] = write_ws_xml_cols(ws, ws["!cols"]);
+	o[sidx = o.length] = "<sheetData/>";
+	ws["!links"] = [];
+	if (ws["!ref"] != null) {
+		rdata = write_ws_xml_data(ws, opts, idx, wb, rels);
+		if (rdata.length > 0) o[o.length] = rdata;
+	}
+	if (o.length > sidx + 1) {
+		o[o.length] = "</sheetData>";
+		o[sidx] = o[sidx].replace("/>", ">");
+	}
+	if (ws["!protect"]) o[o.length] = write_ws_xml_protection(ws["!protect"]);
+	if (ws["!autofilter"] != null) o[o.length] = write_ws_xml_autofilter(ws["!autofilter"], ws, wb, idx);
+	if (ws["!merges"] != null && ws["!merges"].length > 0) o[o.length] = write_ws_xml_merges(ws["!merges"]);
+	var relc = -1, rel, rId = -1;
+	if (ws["!links"].length > 0) {
+		o[o.length] = "<hyperlinks>";
+		ws["!links"].forEach(function(l) {
+			if (!l[1].Target) return;
+			rel = { "ref": l[0] };
+			if (l[1].Target.charAt(0) != "#") {
+				rId = add_rels(rels, -1, escapexml(l[1].Target).replace(/#[\s\S]*$/, ""), RELS.HLINK);
+				rel["r:id"] = "rId" + rId;
+			}
+			if ((relc = l[1].Target.indexOf("#")) > -1) rel.location = escapexml(l[1].Target.slice(relc + 1));
+			if (l[1].Tooltip) rel.tooltip = escapexml(l[1].Tooltip);
+			rel.display = l[1].display;
+			o[o.length] = writextag("hyperlink", null, rel);
+		});
+		o[o.length] = "</hyperlinks>";
+	}
+	delete ws["!links"];
+	if (ws["!margins"] != null) o[o.length] = write_ws_xml_margins(ws["!margins"]);
+	if (!opts || opts.ignoreEC || opts.ignoreEC == void 0) o[o.length] = writetag("ignoredErrors", writextag("ignoredError", null, {
+		numberStoredAsText: 1,
+		sqref: ref
+	}));
+	if (_drawing.length > 0) {
+		rId = add_rels(rels, -1, "../drawings/drawing" + (idx + 1) + ".xml", RELS.DRAW);
+		o[o.length] = writextag("drawing", null, { "r:id": "rId" + rId });
+		ws["!drawing"] = _drawing;
+	}
+	if (ws["!comments"].length > 0) {
+		rId = add_rels(rels, -1, "../drawings/vmlDrawing" + (idx + 1) + ".vml", RELS.VML);
+		o[o.length] = writextag("legacyDrawing", null, { "r:id": "rId" + rId });
+		ws["!legacy"] = rId;
+	}
+	if (o.length > 1) {
+		o[o.length] = "</worksheet>";
+		o[1] = o[1].replace("/>", ">");
+	}
+	return o.join("");
+}
 function parse_BrtRowHdr(data, length) {
 	var z = {};
 	var tgt = data.l + length;
@@ -17043,7 +19520,56 @@ function parse_BrtRowHdr(data, length) {
 	if (flags & 32) z.hpt = miyRw / 20;
 	return z;
 }
+function write_BrtRowHdr(R, range, ws) {
+	var o = new_buf(145);
+	var row = (ws["!rows"] || [])[R] || {};
+	o.write_shift(4, R);
+	o.write_shift(4, 0);
+	var miyRw = 320;
+	if (row.hpx) miyRw = px2pt(row.hpx) * 20;
+	else if (row.hpt) miyRw = row.hpt * 20;
+	o.write_shift(2, miyRw);
+	o.write_shift(1, 0);
+	var flags = 0;
+	if (row.level) flags |= row.level;
+	if (row.hidden) flags |= 16;
+	if (row.hpx || row.hpt) flags |= 32;
+	o.write_shift(1, flags);
+	o.write_shift(1, 0);
+	var ncolspan = 0, lcs = o.l;
+	o.l += 4;
+	var caddr = {
+		r: R,
+		c: 0
+	};
+	var dense = ws["!data"] != null;
+	for (var i = 0; i < 16; ++i) {
+		if (range.s.c > i + 1 << 10 || range.e.c < i << 10) continue;
+		var first = -1, last = -1;
+		for (var j = i << 10; j < i + 1 << 10; ++j) {
+			caddr.c = j;
+			if (dense ? (ws["!data"][caddr.r] || [])[caddr.c] : ws[encode_cell(caddr)]) {
+				if (first < 0) first = j;
+				last = j;
+			}
+		}
+		if (first < 0) continue;
+		++ncolspan;
+		o.write_shift(4, first);
+		o.write_shift(4, last);
+	}
+	var l = o.l;
+	o.l = lcs;
+	o.write_shift(4, ncolspan);
+	o.l = l;
+	return o.length > o.l ? o.slice(0, o.l) : o;
+}
+function write_row_header(ba, ws, range, R) {
+	var o = write_BrtRowHdr(R, range, ws);
+	if (o.length > 17 || (ws["!rows"] || [])[R]) write_record(ba, 0, o);
+}
 var parse_BrtWsDim = parse_UncheckedRfX;
+var write_BrtWsDim = write_UncheckedRfX;
 function parse_BrtWsFmtInfo() {}
 function parse_BrtWsProp(data, length) {
 	var z = {};
@@ -17055,11 +19581,34 @@ function parse_BrtWsProp(data, length) {
 	z.name = parse_XLSBCodeName(data, length - 19);
 	return z;
 }
+function write_BrtWsProp(str, outl, o) {
+	if (o == null) o = new_buf(84 + 4 * str.length);
+	var f = 192;
+	if (outl) {
+		if (outl.above) f &= -65;
+		if (outl.left) f &= -129;
+	}
+	o.write_shift(1, f);
+	for (var i = 1; i < 3; ++i) o.write_shift(1, 0);
+	write_BrtColor({ auto: 1 }, o);
+	o.write_shift(-4, -1);
+	o.write_shift(-4, -1);
+	write_XLSBCodeName(str, o);
+	return o.slice(0, o.l);
+}
 function parse_BrtCellBlank(data) {
 	return [parse_XLSBCell(data)];
 }
+function write_BrtCellBlank(cell, ncell, o) {
+	if (o == null) o = new_buf(8);
+	return write_XLSBCell(ncell, o);
+}
 function parse_BrtShortBlank(data) {
 	return [parse_XLSBShortCell(data)];
+}
+function write_BrtShortBlank(cell, ncell, o) {
+	if (o == null) o = new_buf(4);
+	return write_XLSBShortCell(ncell, o);
 }
 function parse_BrtCellBool(data) {
 	return [
@@ -17068,12 +19617,24 @@ function parse_BrtCellBool(data) {
 		"b"
 	];
 }
+function write_BrtCellBool(cell, ncell, o) {
+	if (o == null) o = new_buf(9);
+	write_XLSBCell(ncell, o);
+	o.write_shift(1, cell.v ? 1 : 0);
+	return o;
+}
 function parse_BrtShortBool(data) {
 	return [
 		parse_XLSBShortCell(data),
 		data.read_shift(1),
 		"b"
 	];
+}
+function write_BrtShortBool(cell, ncell, o) {
+	if (o == null) o = new_buf(5);
+	write_XLSBShortCell(ncell, o);
+	o.write_shift(1, cell.v ? 1 : 0);
+	return o;
 }
 function parse_BrtCellError(data) {
 	return [
@@ -17082,12 +19643,26 @@ function parse_BrtCellError(data) {
 		"e"
 	];
 }
+function write_BrtCellError(cell, ncell, o) {
+	if (o == null) o = new_buf(9);
+	write_XLSBCell(ncell, o);
+	o.write_shift(1, cell.v);
+	return o;
+}
 function parse_BrtShortError(data) {
 	return [
 		parse_XLSBShortCell(data),
 		data.read_shift(1),
 		"e"
 	];
+}
+function write_BrtShortError(cell, ncell, o) {
+	if (o == null) o = new_buf(8);
+	write_XLSBShortCell(ncell, o);
+	o.write_shift(1, cell.v);
+	o.write_shift(2, 0);
+	o.write_shift(1, 0);
+	return o;
 }
 function parse_BrtCellIsst(data) {
 	return [
@@ -17096,12 +19671,24 @@ function parse_BrtCellIsst(data) {
 		"s"
 	];
 }
+function write_BrtCellIsst(cell, ncell, o) {
+	if (o == null) o = new_buf(12);
+	write_XLSBCell(ncell, o);
+	o.write_shift(4, ncell.v);
+	return o;
+}
 function parse_BrtShortIsst(data) {
 	return [
 		parse_XLSBShortCell(data),
 		data.read_shift(4),
 		"s"
 	];
+}
+function write_BrtShortIsst(cell, ncell, o) {
+	if (o == null) o = new_buf(8);
+	write_XLSBShortCell(ncell, o);
+	o.write_shift(4, ncell.v);
+	return o;
 }
 function parse_BrtCellReal(data) {
 	return [
@@ -17110,12 +19697,24 @@ function parse_BrtCellReal(data) {
 		"n"
 	];
 }
+function write_BrtCellReal(cell, ncell, o) {
+	if (o == null) o = new_buf(16);
+	write_XLSBCell(ncell, o);
+	write_Xnum(cell.v, o);
+	return o;
+}
 function parse_BrtShortReal(data) {
 	return [
 		parse_XLSBShortCell(data),
 		parse_Xnum(data),
 		"n"
 	];
+}
+function write_BrtShortReal(cell, ncell, o) {
+	if (o == null) o = new_buf(12);
+	write_XLSBShortCell(ncell, o);
+	write_Xnum(cell.v, o);
+	return o;
 }
 function parse_BrtCellRk(data) {
 	return [
@@ -17124,12 +19723,24 @@ function parse_BrtCellRk(data) {
 		"n"
 	];
 }
+function write_BrtCellRk(cell, ncell, o) {
+	if (o == null) o = new_buf(12);
+	write_XLSBCell(ncell, o);
+	write_RkNumber(cell.v, o);
+	return o;
+}
 function parse_BrtShortRk(data) {
 	return [
 		parse_XLSBShortCell(data),
 		parse_RkNumber(data),
 		"n"
 	];
+}
+function write_BrtShortRk(cell, ncell, o) {
+	if (o == null) o = new_buf(8);
+	write_XLSBShortCell(ncell, o);
+	write_RkNumber(cell.v, o);
+	return o;
 }
 function parse_BrtCellRString(data) {
 	return [
@@ -17145,12 +19756,26 @@ function parse_BrtCellSt(data) {
 		"str"
 	];
 }
+function write_BrtCellSt(cell, ncell, o) {
+	var data = cell.v == null ? "" : String(cell.v);
+	if (o == null) o = new_buf(12 + 4 * cell.v.length);
+	write_XLSBCell(ncell, o);
+	write_XLWideString(data, o);
+	return o.length > o.l ? o.slice(0, o.l) : o;
+}
 function parse_BrtShortSt(data) {
 	return [
 		parse_XLSBShortCell(data),
 		parse_XLWideString(data),
 		"str"
 	];
+}
+function write_BrtShortSt(cell, ncell, o) {
+	var data = cell.v == null ? "" : String(cell.v);
+	if (o == null) o = new_buf(8 + 4 * data.length);
+	write_XLSBShortCell(ncell, o);
+	write_XLWideString(data, o);
+	return o.length > o.l ? o.slice(0, o.l) : o;
 }
 function parse_BrtFmlaBool(data, length, opts) {
 	var end = data.l + length;
@@ -17213,6 +19838,12 @@ function parse_BrtFmlaString(data, length, opts) {
 	return o;
 }
 var parse_BrtMergeCell = parse_UncheckedRfX;
+var write_BrtMergeCell = write_UncheckedRfX;
+function write_BrtBeginMergeCells(cnt, o) {
+	if (o == null) o = new_buf(4);
+	o.write_shift(4, cnt);
+	return o;
+}
 function parse_BrtHLink(data, length) {
 	var end = data.l + length;
 	var rfx = parse_UncheckedRfX(data, 16);
@@ -17229,6 +19860,19 @@ function parse_BrtHLink(data, length) {
 	};
 	if (tooltip) o.Tooltip = tooltip;
 	return o;
+}
+function write_BrtHLink(l, rId) {
+	var o = new_buf(50 + 4 * (l[1].Target.length + (l[1].Tooltip || "").length));
+	write_UncheckedRfX({
+		s: decode_cell(l[0]),
+		e: decode_cell(l[0])
+	}, o);
+	write_RelID("rId" + rId, o);
+	var locidx = l[1].Target.indexOf("#");
+	write_XLWideString((locidx == -1 ? "" : l[1].Target.slice(locidx + 1)) || "", o);
+	write_XLWideString(l[1].Tooltip || "", o);
+	write_XLWideString("", o);
+	return o.slice(0, o.l);
 }
 function parse_BrtPane() {}
 function parse_BrtArrFmla(data, length, opts) {
@@ -17250,6 +19894,20 @@ function parse_BrtShrFmla(data, length, opts) {
 	} else data.l = end;
 	return o;
 }
+function write_BrtColInfo(C, col, o) {
+	if (o == null) o = new_buf(18);
+	var p = col_obj_w(C, col);
+	o.write_shift(-4, C);
+	o.write_shift(-4, C);
+	o.write_shift(4, (p.width || 10) * 256);
+	o.write_shift(4, 0);
+	var flags = 0;
+	if (col.hidden) flags |= 1;
+	if (typeof p.width == "number") flags |= 2;
+	if (col.level) flags |= col.level << 8;
+	o.write_shift(2, flags);
+	return o;
+}
 var BrtMarginKeys = [
 	"left",
 	"right",
@@ -17265,10 +19923,69 @@ function parse_BrtMargins(data) {
 	});
 	return margins;
 }
+function write_BrtMargins(margins, o) {
+	if (o == null) o = new_buf(48);
+	default_margins(margins);
+	BrtMarginKeys.forEach(function(k) {
+		write_Xnum(margins[k], o);
+	});
+	return o;
+}
 function parse_BrtBeginWsView(data) {
 	var f = data.read_shift(2);
 	data.l += 28;
 	return { RTL: f & 32 };
+}
+function write_BrtBeginWsView(ws, Workbook, o) {
+	if (o == null) o = new_buf(30);
+	var f = 924;
+	if ((((Workbook || {}).Views || [])[0] || {}).RTL) f |= 32;
+	o.write_shift(2, f);
+	o.write_shift(4, 0);
+	o.write_shift(4, 0);
+	o.write_shift(4, 0);
+	o.write_shift(1, 0);
+	o.write_shift(1, 0);
+	o.write_shift(2, 0);
+	o.write_shift(2, 100);
+	o.write_shift(2, 0);
+	o.write_shift(2, 0);
+	o.write_shift(2, 0);
+	o.write_shift(4, 0);
+	return o;
+}
+function write_BrtCellIgnoreEC(ref) {
+	var o = new_buf(24);
+	o.write_shift(4, 4);
+	o.write_shift(4, 1);
+	write_UncheckedRfX(ref, o);
+	return o;
+}
+function write_BrtSheetProtection(sp, o) {
+	if (o == null) o = new_buf(66);
+	o.write_shift(2, sp.password ? crypto_CreatePasswordVerifier_Method1(sp.password) : 0);
+	o.write_shift(4, 1);
+	[
+		["objects", false],
+		["scenarios", false],
+		["formatCells", true],
+		["formatColumns", true],
+		["formatRows", true],
+		["insertColumns", true],
+		["insertRows", true],
+		["insertHyperlinks", true],
+		["deleteColumns", true],
+		["deleteRows", true],
+		["selectLockedCells", false],
+		["sort", true],
+		["autoFilter", true],
+		["pivotTables", true],
+		["selectUnlockedCells", false]
+	].forEach(function(n) {
+		if (n[1]) o.write_shift(4, sp[n[0]] != null && !sp[n[0]] ? 1 : 0);
+		else o.write_shift(4, sp[n[0]] != null && sp[n[0]] ? 0 : 1);
+	});
+	return o;
 }
 function parse_BrtDVal() {}
 function parse_BrtDVal14() {}
@@ -17609,6 +20326,217 @@ function parse_ws_bin(data, _opts, idx, rels, wb, themes, styles) {
 	if (rels["!id"][s["!legrel"]]) s["!legdrawel"] = rels["!id"][s["!legrel"]];
 	return s;
 }
+function write_ws_bin_cell(ba, cell, R, C, opts, ws, last_seen, date1904) {
+	var o = {
+		r: R,
+		c: C
+	};
+	if (cell.c) ws["!comments"].push([encode_cell(o), cell.c]);
+	if (cell.v === void 0) return false;
+	var vv = "";
+	switch (cell.t) {
+		case "b":
+			vv = cell.v ? "1" : "0";
+			break;
+		case "d":
+			cell = dup(cell);
+			cell.z = cell.z || table_fmt[14];
+			cell.v = datenum(parseDate(cell.v, date1904), date1904);
+			cell.t = "n";
+			break;
+		case "n":
+		case "e":
+			vv = "" + cell.v;
+			break;
+		default: vv = cell.v;
+	}
+	o.s = get_cell_style(opts.cellXfs, cell, opts);
+	if (cell.l) ws["!links"].push([encode_cell(o), cell.l]);
+	switch (cell.t) {
+		case "s":
+		case "str":
+			if (opts.bookSST) {
+				vv = get_sst_id(opts.Strings, cell.v == null ? "" : String(cell.v), opts.revStrings);
+				o.t = "s";
+				o.v = vv;
+				if (last_seen) write_record(ba, 18, write_BrtShortIsst(cell, o));
+				else write_record(ba, 7, write_BrtCellIsst(cell, o));
+			} else {
+				o.t = "str";
+				if (last_seen) write_record(ba, 17, write_BrtShortSt(cell, o));
+				else write_record(ba, 6, write_BrtCellSt(cell, o));
+			}
+			return true;
+		case "n":
+			if (cell.v == (cell.v | 0) && cell.v > -1e3 && cell.v < 1e3) {
+				if (last_seen) write_record(ba, 13, write_BrtShortRk(cell, o));
+				else write_record(ba, 2, write_BrtCellRk(cell, o));
+			} else if (!isFinite(cell.v)) {
+				o.t = "e";
+				if (isNaN(cell.v)) {
+					if (last_seen) write_record(ba, 14, write_BrtShortError({
+						t: "e",
+						v: 36
+					}, o));
+					else write_record(ba, 3, write_BrtCellError({
+						t: "e",
+						v: 36
+					}, o));
+				} else if (last_seen) write_record(ba, 14, write_BrtShortError({
+					t: "e",
+					v: 7
+				}, o));
+				else write_record(ba, 3, write_BrtCellError({
+					t: "e",
+					v: 7
+				}, o));
+			} else if (last_seen) write_record(ba, 16, write_BrtShortReal(cell, o));
+			else write_record(ba, 5, write_BrtCellReal(cell, o));
+			return true;
+		case "b":
+			o.t = "b";
+			if (last_seen) write_record(ba, 15, write_BrtShortBool(cell, o));
+			else write_record(ba, 4, write_BrtCellBool(cell, o));
+			return true;
+		case "e":
+			o.t = "e";
+			if (last_seen) write_record(ba, 14, write_BrtShortError(cell, o));
+			else write_record(ba, 3, write_BrtCellError(cell, o));
+			return true;
+	}
+	if (last_seen) write_record(ba, 12, write_BrtShortBlank(cell, o));
+	else write_record(ba, 1, write_BrtCellBlank(cell, o));
+	return true;
+}
+function write_CELLTABLE(ba, ws, idx, opts, wb) {
+	var range = safe_decode_range(ws["!ref"] || "A1"), rr = "", cols = [];
+	var date1904 = (((wb || {}).Workbook || {}).WBProps || {}).date1904;
+	write_record(ba, 145);
+	var dense = ws["!data"] != null, row = dense ? ws["!data"][range.s.r] : [];
+	var cap = range.e.r;
+	if (ws["!rows"]) cap = Math.max(range.e.r, ws["!rows"].length - 1);
+	for (var R = range.s.r; R <= cap; ++R) {
+		rr = encode_row(R);
+		if (dense) row = ws["!data"][R];
+		write_row_header(ba, ws, range, R);
+		if (dense && !row) continue;
+		var last_seen = false;
+		if (R <= range.e.r) for (var C = range.s.c; C <= range.e.c; ++C) {
+			if (R === range.s.r) cols[C] = encode_col(C);
+			var cell = dense ? row[C] : ws[cols[C] + rr];
+			if (!cell) {
+				last_seen = false;
+				continue;
+			}
+			last_seen = write_ws_bin_cell(ba, cell, R, C, opts, ws, last_seen, date1904);
+		}
+	}
+	write_record(ba, 146);
+}
+function write_MERGECELLS(ba, ws) {
+	if (!ws || !ws["!merges"]) return;
+	write_record(ba, 177, write_BrtBeginMergeCells(ws["!merges"].length));
+	ws["!merges"].forEach(function(m) {
+		write_record(ba, 176, write_BrtMergeCell(m));
+	});
+	write_record(ba, 178);
+}
+function write_COLINFOS(ba, ws) {
+	if (!ws || !ws["!cols"]) return;
+	write_record(ba, 390);
+	ws["!cols"].forEach(function(m, i) {
+		if (m) write_record(ba, 60, write_BrtColInfo(i, m));
+	});
+	write_record(ba, 391);
+}
+function write_IGNOREECS(ba, ws) {
+	if (!ws || !ws["!ref"]) return;
+	write_record(ba, 648);
+	write_record(ba, 649, write_BrtCellIgnoreEC(safe_decode_range(ws["!ref"])));
+	write_record(ba, 650);
+}
+function write_HLINKS(ba, ws, rels) {
+	ws["!links"].forEach(function(l) {
+		if (!l[1].Target) return;
+		write_record(ba, 494, write_BrtHLink(l, add_rels(rels, -1, l[1].Target.replace(/#[\s\S]*$/, ""), RELS.HLINK)));
+	});
+	delete ws["!links"];
+}
+function write_LEGACYDRAWING(ba, ws, idx, rels) {
+	if (ws["!comments"].length > 0) {
+		var rId = add_rels(rels, -1, "../drawings/vmlDrawing" + (idx + 1) + ".vml", RELS.VML);
+		write_record(ba, 551, write_RelID("rId" + rId));
+		ws["!legacy"] = rId;
+	}
+}
+function write_AUTOFILTER(ba, ws, wb, idx) {
+	if (!ws["!autofilter"]) return;
+	var data = ws["!autofilter"];
+	var ref = typeof data.ref === "string" ? data.ref : encode_range(data.ref);
+	if (!wb.Workbook) wb.Workbook = { Sheets: [] };
+	if (!wb.Workbook.Names) wb.Workbook.Names = [];
+	var names = wb.Workbook.Names;
+	var range = decode_range(ref);
+	if (range.s.r == range.e.r) {
+		range.e.r = decode_range(ws["!ref"]).e.r;
+		ref = encode_range(range);
+	}
+	for (var i = 0; i < names.length; ++i) {
+		var name = names[i];
+		if (name.Name != "_xlnm._FilterDatabase") continue;
+		if (name.Sheet != idx) continue;
+		name.Ref = formula_quote_sheet_name(wb.SheetNames[idx]) + "!" + fix_range(ref);
+		break;
+	}
+	if (i == names.length) names.push({
+		Name: "_xlnm._FilterDatabase",
+		Sheet: idx,
+		Ref: formula_quote_sheet_name(wb.SheetNames[idx]) + "!" + fix_range(ref)
+	});
+	write_record(ba, 161, write_UncheckedRfX(safe_decode_range(ref)));
+	write_record(ba, 162);
+}
+function write_WSVIEWS2(ba, ws, Workbook) {
+	write_record(ba, 133);
+	write_record(ba, 137, write_BrtBeginWsView(ws, Workbook));
+	write_record(ba, 138);
+	write_record(ba, 134);
+}
+function write_SHEETPROTECT(ba, ws) {
+	if (!ws["!protect"]) return;
+	write_record(ba, 535, write_BrtSheetProtection(ws["!protect"]));
+}
+function write_ws_bin(idx, opts, wb, rels) {
+	var ba = buf_array();
+	var s = wb.SheetNames[idx], ws = wb.Sheets[s] || {};
+	var c = s;
+	try {
+		if (wb && wb.Workbook) c = wb.Workbook.Sheets[idx].CodeName || c;
+	} catch (e) {}
+	var r = safe_decode_range(ws["!ref"] || "A1");
+	if (r.e.c > 16383 || r.e.r > 1048575) {
+		if (opts.WTF) throw new Error("Range " + (ws["!ref"] || "A1") + " exceeds format limit A1:XFD1048576");
+		r.e.c = Math.min(r.e.c, 16383);
+		r.e.r = Math.min(r.e.c, 1048575);
+	}
+	ws["!links"] = [];
+	ws["!comments"] = [];
+	write_record(ba, 129);
+	if (wb.vbaraw || ws["!outline"]) write_record(ba, 147, write_BrtWsProp(c, ws["!outline"]));
+	write_record(ba, 148, write_BrtWsDim(r));
+	write_WSVIEWS2(ba, ws, wb.Workbook);
+	write_COLINFOS(ba, ws, idx, opts, wb);
+	write_CELLTABLE(ba, ws, idx, opts, wb);
+	write_SHEETPROTECT(ba, ws);
+	write_AUTOFILTER(ba, ws, wb, idx);
+	write_MERGECELLS(ba, ws);
+	write_HLINKS(ba, ws, rels);
+	if (ws["!margins"]) write_record(ba, 476, write_BrtMargins(ws["!margins"]));
+	if (!opts || opts.ignoreEC || opts.ignoreEC == void 0) write_IGNOREECS(ba, ws);
+	write_LEGACYDRAWING(ba, ws, idx, rels);
+	write_record(ba, 130);
+	return ba.end();
+}
 function parse_Cache(data) {
 	var col = [];
 	var num = data.match(/^<c:numCache>/);
@@ -17908,6 +20836,11 @@ function parse_wb_defaults(wb) {
 	push_defaults_array(wb.Sheets, SheetDef);
 	_ssfopts.date1904 = parsexmlbool(wb.WBProps.date1904);
 }
+function safe1904(wb) {
+	if (!wb.Workbook) return "false";
+	if (!wb.Workbook.WBProps) return "false";
+	return parsexmlbool(wb.Workbook.WBProps.date1904) ? "true" : "false";
+}
 var badchars = /*#__PURE__*/ ":][*?/\\".split("");
 function check_ws_name(n, safe) {
 	try {
@@ -17924,6 +20857,40 @@ function check_ws_name(n, safe) {
 		throw e;
 	}
 	return true;
+}
+function check_wb_names(N, S, codes) {
+	N.forEach(function(n, i) {
+		check_ws_name(n);
+		for (var j = 0; j < i; ++j) if (n == N[j]) throw new Error("Duplicate Sheet Name: " + n);
+		if (codes) {
+			var cn = S && S[i] && S[i].CodeName || n;
+			if (cn.charCodeAt(0) == 95 && cn.length > 22) throw new Error("Bad Code Name: Worksheet" + cn);
+		}
+	});
+}
+function check_wb(wb) {
+	if (!wb || !wb.SheetNames || !wb.Sheets) throw new Error("Invalid Workbook");
+	if (!wb.SheetNames.length) throw new Error("Workbook is empty");
+	var Sheets = wb.Workbook && wb.Workbook.Sheets || [];
+	check_wb_names(wb.SheetNames, Sheets, !!wb.vbaraw);
+	for (var i = 0; i < wb.SheetNames.length; ++i) check_ws(wb.Sheets[wb.SheetNames[i]], wb.SheetNames[i], i);
+	wb.SheetNames.forEach(function(n, i) {
+		var ws = wb.Sheets[n];
+		if (!ws || !ws["!autofilter"]) return;
+		var DN;
+		if (!wb.Workbook) wb.Workbook = {};
+		if (!wb.Workbook.Names) wb.Workbook.Names = [];
+		wb.Workbook.Names.forEach(function(dn) {
+			if (dn.Name == "_xlnm._FilterDatabase" && dn.Sheet == i) DN = dn;
+		});
+		var nn = formula_quote_sheet_name(n) + "!" + fix_range(ws["!autofilter"].ref);
+		if (DN) DN.Ref = nn;
+		else wb.Workbook.Names.push({
+			Name: "_xlnm._FilterDatabase",
+			Sheet: i,
+			Ref: nn
+		});
+	});
 }
 var wbnsregex = /<\w+:workbook/;
 function parse_wb_xml(data, opts) {
@@ -18091,6 +21058,72 @@ function parse_wb_xml(data, opts) {
 	parse_wb_defaults(wb);
 	return wb;
 }
+function write_wb_xml(wb) {
+	var o = [XML_HEADER];
+	o[o.length] = writextag("workbook", null, {
+		"xmlns": XMLNS_main[0],
+		"xmlns:r": XMLNS.r
+	});
+	var write_names = wb.Workbook && (wb.Workbook.Names || []).length > 0;
+	var workbookPr = { codeName: "ThisWorkbook" };
+	if (wb.Workbook && wb.Workbook.WBProps) {
+		WBPropsDef.forEach(function(x) {
+			if (wb.Workbook.WBProps[x[0]] == null) return;
+			if (wb.Workbook.WBProps[x[0]] == x[1]) return;
+			workbookPr[x[0]] = wb.Workbook.WBProps[x[0]];
+		});
+		if (wb.Workbook.WBProps.CodeName) {
+			workbookPr.codeName = wb.Workbook.WBProps.CodeName;
+			delete workbookPr.CodeName;
+		}
+	}
+	o[o.length] = writextag("workbookPr", null, workbookPr);
+	var sheets = wb.Workbook && wb.Workbook.Sheets || [];
+	var i = 0;
+	if (sheets && sheets[0] && !!sheets[0].Hidden) {
+		o[o.length] = "<bookViews>";
+		for (i = 0; i != wb.SheetNames.length; ++i) {
+			if (!sheets[i]) break;
+			if (!sheets[i].Hidden) break;
+		}
+		if (i == wb.SheetNames.length) i = 0;
+		o[o.length] = "<workbookView firstSheet=\"" + i + "\" activeTab=\"" + i + "\"/>";
+		o[o.length] = "</bookViews>";
+	}
+	o[o.length] = "<sheets>";
+	for (i = 0; i != wb.SheetNames.length; ++i) {
+		var sht = { name: escapexml(wb.SheetNames[i].slice(0, 31)) };
+		sht.sheetId = "" + (i + 1);
+		sht["r:id"] = "rId" + (i + 1);
+		if (sheets[i]) switch (sheets[i].Hidden) {
+			case 1:
+				sht.state = "hidden";
+				break;
+			case 2:
+				sht.state = "veryHidden";
+				break;
+		}
+		o[o.length] = writextag("sheet", null, sht);
+	}
+	o[o.length] = "</sheets>";
+	if (write_names) {
+		o[o.length] = "<definedNames>";
+		if (wb.Workbook && wb.Workbook.Names) wb.Workbook.Names.forEach(function(n) {
+			var d = { name: n.Name };
+			if (n.Comment) d.comment = n.Comment;
+			if (n.Sheet != null) d.localSheetId = "" + n.Sheet;
+			if (n.Hidden) d.hidden = "1";
+			if (!n.Ref) return;
+			o[o.length] = writextag("definedName", escapexml(n.Ref), d);
+		});
+		o[o.length] = "</definedNames>";
+	}
+	if (o.length > 2) {
+		o[o.length] = "</workbook>";
+		o[1] = o[1].replace("/>", ">");
+	}
+	return o.join("");
+}
 function parse_BrtBundleSh(data, length) {
 	var z = {};
 	z.Hidden = data.read_shift(4);
@@ -18098,6 +21131,14 @@ function parse_BrtBundleSh(data, length) {
 	z.strRelID = parse_RelID(data, length - 8);
 	z.name = parse_XLWideString(data);
 	return z;
+}
+function write_BrtBundleSh(data, o) {
+	if (!o) o = new_buf(127);
+	o.write_shift(4, data.Hidden);
+	o.write_shift(4, data.iTabID);
+	write_RelID(data.strRelID, o);
+	write_XLWideString(data.name.slice(0, 31), o);
+	return o.length > o.l ? o.slice(0, o.l) : o;
 }
 function parse_BrtWbProp(data, length) {
 	var o = {};
@@ -18129,6 +21170,18 @@ function parse_BrtWbProp(data, length) {
 		"always"
 	][flags >> 8 & 3];
 	return o;
+}
+function write_BrtWbProp(data, o) {
+	if (!o) o = new_buf(72);
+	var flags = 0;
+	if (data) {
+		if (data.date1904) flags |= 1;
+		if (data.filterPrivacy) flags |= 8;
+	}
+	o.write_shift(4, flags);
+	o.write_shift(4, 0);
+	write_XLSBCodeName(data && data.CodeName || "ThisWorkbook", o);
+	return o.slice(0, o.l);
 }
 function parse_BrtFRTArchID$(data, length) {
 	var o = {};
@@ -18163,6 +21216,30 @@ function parse_BrtName(data, length, opts) {
 	if (itab < 268435455) out.Sheet = itab;
 	if (comment) out.Comment = comment;
 	return out;
+}
+function write_BrtName(name, wb) {
+	var o = new_buf(9);
+	var flags = 0;
+	var dname = name.Name;
+	if (XLSLblBuiltIn.indexOf(dname) > -1) {
+		flags |= 32;
+		dname = dname.slice(6);
+	}
+	o.write_shift(4, flags);
+	o.write_shift(1, 0);
+	o.write_shift(4, name.Sheet == null ? 4294967295 : name.Sheet);
+	var arr = [
+		o,
+		write_XLWideString(dname),
+		write_XLSBNameParsedFormula(name.Ref, wb)
+	];
+	if (name.Comment) arr.push(write_XLNullableWideString(name.Comment));
+	else {
+		var x = new_buf(4);
+		x.write_shift(4, 4294967295);
+		arr.push(x);
+	}
+	return bconcat(arr);
 }
 function parse_wb_bin(data, opts) {
 	var wb = {
@@ -18273,6 +21350,94 @@ function parse_wb_bin(data, opts) {
 	wb.Names = Names;
 	wb.supbooks = supbooks;
 	return wb;
+}
+function write_BUNDLESHS(ba, wb) {
+	write_record(ba, 143);
+	for (var idx = 0; idx != wb.SheetNames.length; ++idx) write_record(ba, 156, write_BrtBundleSh({
+		Hidden: wb.Workbook && wb.Workbook.Sheets && wb.Workbook.Sheets[idx] && wb.Workbook.Sheets[idx].Hidden || 0,
+		iTabID: idx + 1,
+		strRelID: "rId" + (idx + 1),
+		name: wb.SheetNames[idx]
+	}));
+	write_record(ba, 144);
+}
+function write_BrtFileVersion(data, o) {
+	if (!o) o = new_buf(127);
+	for (var i = 0; i != 4; ++i) o.write_shift(4, 0);
+	write_XLWideString("SheetJS", o);
+	write_XLWideString(XLSX.version, o);
+	write_XLWideString(XLSX.version, o);
+	write_XLWideString("7262", o);
+	return o.length > o.l ? o.slice(0, o.l) : o;
+}
+function write_BrtBookView(idx, o) {
+	if (!o) o = new_buf(29);
+	o.write_shift(-4, 0);
+	o.write_shift(-4, 460);
+	o.write_shift(4, 28800);
+	o.write_shift(4, 17600);
+	o.write_shift(4, 500);
+	o.write_shift(4, idx);
+	o.write_shift(4, idx);
+	o.write_shift(1, 120);
+	return o.length > o.l ? o.slice(0, o.l) : o;
+}
+function write_BOOKVIEWS(ba, wb) {
+	if (!wb.Workbook || !wb.Workbook.Sheets) return;
+	var sheets = wb.Workbook.Sheets;
+	var i = 0, vistab = -1, hidden = -1;
+	for (; i < sheets.length; ++i) if (!sheets[i] || !sheets[i].Hidden && vistab == -1) vistab = i;
+	else if (sheets[i].Hidden == 1 && hidden == -1) hidden = i;
+	if (hidden > vistab) return;
+	write_record(ba, 135);
+	write_record(ba, 158, write_BrtBookView(vistab));
+	write_record(ba, 136);
+}
+function write_BRTNAMES(ba, wb) {
+	if (!wb.Workbook || !wb.Workbook.Names) return;
+	wb.Workbook.Names.forEach(function(name) {
+		try {
+			if (name.Flags & 14) return;
+			write_record(ba, 39, write_BrtName(name, wb));
+		} catch (e) {
+			console.error("Could not serialize defined name " + JSON.stringify(name));
+		}
+	});
+}
+function write_SELF_EXTERNS_xlsb(wb) {
+	var L = wb.SheetNames.length;
+	var o = new_buf(12 * L + 28);
+	o.write_shift(4, L + 2);
+	o.write_shift(4, 0);
+	o.write_shift(4, -2);
+	o.write_shift(4, -2);
+	o.write_shift(4, 0);
+	o.write_shift(4, -1);
+	o.write_shift(4, -1);
+	for (var i = 0; i < L; ++i) {
+		o.write_shift(4, 0);
+		o.write_shift(4, i);
+		o.write_shift(4, i);
+	}
+	return o;
+}
+function write_EXTERNALS_xlsb(ba, wb) {
+	write_record(ba, 353);
+	write_record(ba, 357);
+	write_record(ba, 362, write_SELF_EXTERNS_xlsb(wb, 0));
+	write_record(ba, 354);
+}
+function write_wb_bin(wb, opts) {
+	var ba = buf_array();
+	write_record(ba, 131);
+	write_record(ba, 128, write_BrtFileVersion());
+	write_record(ba, 153, write_BrtWbProp(wb.Workbook && wb.Workbook.WBProps || null));
+	write_BOOKVIEWS(ba, wb, opts);
+	write_BUNDLESHS(ba, wb, opts);
+	write_EXTERNALS_xlsb(ba, wb);
+	if ((wb.Workbook || {}).Names) write_BRTNAMES(ba, wb);
+	write_record(ba, 132);
+	return ba.end();
 }
 function parse_wb(data, name, opts) {
 	if (name.slice(-4) === ".bin") return parse_wb_bin(data, opts);
@@ -19306,6 +22471,269 @@ function parse_xlml(data, opts) {
 		case "array": return parse_xlml_xml(a2s(data), opts);
 	}
 }
+function write_props_xlml(wb, opts) {
+	var o = [];
+	if (wb.Props) o.push(xlml_write_docprops(wb.Props, opts));
+	if (wb.Custprops) o.push(xlml_write_custprops(wb.Props, wb.Custprops, opts));
+	return o.join("");
+}
+function write_wb_xlml(wb) {
+	if ((((wb || {}).Workbook || {}).WBProps || {}).date1904) return "<ExcelWorkbook xmlns=\"urn:schemas-microsoft-com:office:excel\"><Date1904/></ExcelWorkbook>";
+	return "";
+}
+function write_sty_xlml(wb, opts) {
+	var styles = ["<Style ss:ID=\"Default\" ss:Name=\"Normal\"><NumberFormat/></Style>"];
+	opts.cellXfs.forEach(function(xf, id) {
+		var payload = [];
+		payload.push(writextag("NumberFormat", null, { "ss:Format": escapexml(table_fmt[xf.numFmtId]) }));
+		var o = { "ss:ID": "s" + (21 + id) };
+		styles.push(writextag("Style", payload.join(""), o));
+	});
+	return writextag("Styles", styles.join(""));
+}
+function write_name_xlml(n) {
+	return writextag("NamedRange", null, {
+		"ss:Name": n.Name.slice(0, 6) == "_xlnm." ? n.Name.slice(6) : n.Name,
+		"ss:RefersTo": "=" + a1_to_rc(n.Ref, {
+			r: 0,
+			c: 0
+		})
+	});
+}
+function write_names_xlml(wb) {
+	if (!((wb || {}).Workbook || {}).Names) return "";
+	var names = wb.Workbook.Names;
+	var out = [];
+	for (var i = 0; i < names.length; ++i) {
+		var n = names[i];
+		if (n.Sheet != null) continue;
+		if (n.Name.match(/^_xlfn\./)) continue;
+		out.push(write_name_xlml(n));
+	}
+	return writextag("Names", out.join(""));
+}
+function write_ws_xlml_names(ws, opts, idx, wb) {
+	if (!ws) return "";
+	if (!((wb || {}).Workbook || {}).Names) return "";
+	var names = wb.Workbook.Names;
+	var out = [];
+	for (var i = 0; i < names.length; ++i) {
+		var n = names[i];
+		if (n.Sheet != idx) continue;
+		if (n.Name.match(/^_xlfn\./)) continue;
+		out.push(write_name_xlml(n));
+	}
+	return out.join("");
+}
+function write_ws_xlml_wsopts(ws, opts, idx, wb) {
+	if (!ws) return "";
+	var o = [];
+	if (ws["!margins"]) {
+		o.push("<PageSetup>");
+		if (ws["!margins"].header) o.push(writextag("Header", null, { "x:Margin": ws["!margins"].header }));
+		if (ws["!margins"].footer) o.push(writextag("Footer", null, { "x:Margin": ws["!margins"].footer }));
+		o.push(writextag("PageMargins", null, {
+			"x:Bottom": ws["!margins"].bottom || "0.75",
+			"x:Left": ws["!margins"].left || "0.7",
+			"x:Right": ws["!margins"].right || "0.7",
+			"x:Top": ws["!margins"].top || "0.75"
+		}));
+		o.push("</PageSetup>");
+	}
+	if (wb && wb.Workbook && wb.Workbook.Sheets && wb.Workbook.Sheets[idx]) {
+		if (wb.Workbook.Sheets[idx].Hidden) o.push(writextag("Visible", wb.Workbook.Sheets[idx].Hidden == 1 ? "SheetHidden" : "SheetVeryHidden", {}));
+		else {
+			for (var i = 0; i < idx; ++i) if (wb.Workbook.Sheets[i] && !wb.Workbook.Sheets[i].Hidden) break;
+			if (i == idx) o.push("<Selected/>");
+		}
+	}
+	if (((((wb || {}).Workbook || {}).Views || [])[0] || {}).RTL) o.push("<DisplayRightToLeft/>");
+	if (ws["!protect"]) {
+		o.push(writetag("ProtectContents", "True"));
+		if (ws["!protect"].objects) o.push(writetag("ProtectObjects", "True"));
+		if (ws["!protect"].scenarios) o.push(writetag("ProtectScenarios", "True"));
+		if (ws["!protect"].selectLockedCells != null && !ws["!protect"].selectLockedCells) o.push(writetag("EnableSelection", "NoSelection"));
+		else if (ws["!protect"].selectUnlockedCells != null && !ws["!protect"].selectUnlockedCells) o.push(writetag("EnableSelection", "UnlockedCells"));
+		[
+			["formatCells", "AllowFormatCells"],
+			["formatColumns", "AllowSizeCols"],
+			["formatRows", "AllowSizeRows"],
+			["insertColumns", "AllowInsertCols"],
+			["insertRows", "AllowInsertRows"],
+			["insertHyperlinks", "AllowInsertHyperlinks"],
+			["deleteColumns", "AllowDeleteCols"],
+			["deleteRows", "AllowDeleteRows"],
+			["sort", "AllowSort"],
+			["autoFilter", "AllowFilter"],
+			["pivotTables", "AllowUsePivotTables"]
+		].forEach(function(x) {
+			if (ws["!protect"][x[0]]) o.push("<" + x[1] + "/>");
+		});
+	}
+	if (o.length == 0) return "";
+	return writextag("WorksheetOptions", o.join(""), { xmlns: XLMLNS.x });
+}
+function write_ws_xlml_comment(comments) {
+	return comments.map(function(c) {
+		var d = writextag("ss:Data", xlml_unfixstr(c.t || ""), { "xmlns": "http://www.w3.org/TR/REC-html40" });
+		var p = {};
+		if (c.a) p["ss:Author"] = c.a;
+		if (!comments.hidden) p["ss:ShowAlways"] = "1";
+		return writextag("Comment", d, p);
+	}).join("");
+}
+function write_ws_xlml_cell(cell, ref, ws, opts, idx, wb, addr) {
+	if (!cell || cell.v == void 0 && cell.f == void 0) return "";
+	var attr = {};
+	if (cell.f) attr["ss:Formula"] = "=" + escapexml(a1_to_rc(cell.f, addr));
+	if (cell.F && cell.F.slice(0, ref.length) == ref) {
+		var end = decode_cell(cell.F.slice(ref.length + 1));
+		attr["ss:ArrayRange"] = "RC:R" + (end.r == addr.r ? "" : "[" + (end.r - addr.r) + "]") + "C" + (end.c == addr.c ? "" : "[" + (end.c - addr.c) + "]");
+	}
+	if (cell.l && cell.l.Target) {
+		attr["ss:HRef"] = escapexml(cell.l.Target);
+		if (cell.l.Tooltip) attr["x:HRefScreenTip"] = escapexml(cell.l.Tooltip);
+	}
+	if (ws["!merges"]) {
+		var marr = ws["!merges"];
+		for (var mi = 0; mi != marr.length; ++mi) {
+			if (marr[mi].s.c != addr.c || marr[mi].s.r != addr.r) continue;
+			if (marr[mi].e.c > marr[mi].s.c) attr["ss:MergeAcross"] = marr[mi].e.c - marr[mi].s.c;
+			if (marr[mi].e.r > marr[mi].s.r) attr["ss:MergeDown"] = marr[mi].e.r - marr[mi].s.r;
+		}
+	}
+	var t = "", p = "";
+	switch (cell.t) {
+		case "z":
+			if (!opts.sheetStubs) return "";
+			break;
+		case "n":
+			if (!isFinite(cell.v)) {
+				t = "Error";
+				p = BErr[isNaN(cell.v) ? 36 : 7];
+			} else {
+				t = "Number";
+				p = String(cell.v);
+			}
+			break;
+		case "b":
+			t = "Boolean";
+			p = cell.v ? "1" : "0";
+			break;
+		case "e":
+			t = "Error";
+			p = BErr[cell.v];
+			break;
+		case "d":
+			t = "DateTime";
+			p = new Date(cell.v).toISOString();
+			if (cell.z == null) cell.z = cell.z || table_fmt[14];
+			break;
+		case "s":
+			t = "String";
+			p = escapexlml(cell.v || "");
+	}
+	attr["ss:StyleID"] = "s" + (21 + get_cell_style(opts.cellXfs, cell, opts));
+	attr["ss:Index"] = addr.c + 1;
+	var _v = cell.v != null ? p : "";
+	var m = cell.t == "z" ? "" : "<Data ss:Type=\"" + t + "\">" + _v + "</Data>";
+	if ((cell.c || []).length > 0) m += write_ws_xlml_comment(cell.c);
+	return writextag("Cell", m, attr);
+}
+function write_ws_xlml_row(R, row) {
+	var o = "<Row ss:Index=\"" + (R + 1) + "\"";
+	if (row) {
+		if (row.hpt && !row.hpx) row.hpx = pt2px(row.hpt);
+		if (row.hpx) o += " ss:AutoFitHeight=\"0\" ss:Height=\"" + row.hpx + "\"";
+		if (row.hidden) o += " ss:Hidden=\"1\"";
+	}
+	return o + ">";
+}
+function write_ws_xlml_table(ws, opts, idx, wb) {
+	if (!ws["!ref"]) return "";
+	var range = safe_decode_range(ws["!ref"]);
+	var marr = ws["!merges"] || [], mi = 0;
+	var o = [];
+	if (ws["!cols"]) ws["!cols"].forEach(function(n, i) {
+		process_col(n);
+		var w = !!n.width;
+		var p = col_obj_w(i, n);
+		var k = { "ss:Index": i + 1 };
+		if (w) k["ss:Width"] = width2px(p.width);
+		if (n.hidden) k["ss:Hidden"] = "1";
+		o.push(writextag("Column", null, k));
+	});
+	var dense = ws["!data"] != null;
+	var addr = {
+		r: 0,
+		c: 0
+	};
+	for (var R = range.s.r; R <= range.e.r; ++R) {
+		var row = [write_ws_xlml_row(R, (ws["!rows"] || [])[R])];
+		addr.r = R;
+		for (var C = range.s.c; C <= range.e.c; ++C) {
+			addr.c = C;
+			var skip = false;
+			for (mi = 0; mi != marr.length; ++mi) {
+				if (marr[mi].s.c > C) continue;
+				if (marr[mi].s.r > R) continue;
+				if (marr[mi].e.c < C) continue;
+				if (marr[mi].e.r < R) continue;
+				if (marr[mi].s.c != C || marr[mi].s.r != R) skip = true;
+				break;
+			}
+			if (skip) continue;
+			var ref = encode_col(C) + encode_row(R), cell = dense ? (ws["!data"][R] || [])[C] : ws[ref];
+			row.push(write_ws_xlml_cell(cell, ref, ws, opts, idx, wb, addr));
+		}
+		row.push("</Row>");
+		if (row.length > 2) o.push(row.join(""));
+	}
+	return o.join("");
+}
+function write_ws_xlml(idx, opts, wb) {
+	var o = [];
+	var s = wb.SheetNames[idx];
+	var ws = wb.Sheets[s];
+	var t = ws ? write_ws_xlml_names(ws, opts, idx, wb) : "";
+	if (t.length > 0) o.push("<Names>" + t + "</Names>");
+	t = ws ? write_ws_xlml_table(ws, opts, idx, wb) : "";
+	if (t.length > 0) o.push("<Table>" + t + "</Table>");
+	o.push(write_ws_xlml_wsopts(ws, opts, idx, wb));
+	if (ws && ws["!autofilter"]) o.push("<AutoFilter x:Range=\"" + a1_to_rc(fix_range(ws["!autofilter"].ref), {
+		r: 0,
+		c: 0
+	}) + "\" xmlns=\"urn:schemas-microsoft-com:office:excel\"></AutoFilter>");
+	return o.join("");
+}
+function write_xlml(wb, opts) {
+	if (!opts) opts = {};
+	if (!wb.SSF) wb.SSF = dup(table_fmt);
+	if (wb.SSF) {
+		make_ssf();
+		SSF_load_table(wb.SSF);
+		opts.revssf = evert_num(wb.SSF);
+		opts.revssf[wb.SSF[65535]] = 0;
+		opts.ssf = wb.SSF;
+		opts.cellXfs = [];
+		get_cell_style(opts.cellXfs, {}, { revssf: { "General": 0 } });
+	}
+	var d = [];
+	d.push(write_props_xlml(wb, opts));
+	d.push(write_wb_xlml(wb, opts));
+	d.push("");
+	d.push(write_names_xlml(wb, opts));
+	for (var i = 0; i < wb.SheetNames.length; ++i) d.push(writextag("Worksheet", write_ws_xlml(i, opts, wb), { "ss:Name": escapexml(wb.SheetNames[i]) }));
+	d[2] = write_sty_xlml(wb, opts);
+	return XML_HEADER + writextag("Workbook", d.join(""), {
+		"xmlns": XLMLNS.ss,
+		"xmlns:o": XLMLNS.o,
+		"xmlns:x": XLMLNS.x,
+		"xmlns:ss": XLMLNS.ss,
+		"xmlns:dt": XLMLNS.dt,
+		"xmlns:html": XLMLNS.html
+	});
+}
 function parse_compobj(obj) {
 	var v = {};
 	var o = obj.content;
@@ -20152,6 +23580,28 @@ function parse_xls_props(cfb, props, o) {
 		delete props.TitlesOfParts;
 	}
 }
+function write_xls_props(wb, cfb) {
+	var DSEntries = [], SEntries = [], CEntries = [];
+	var i = 0, Keys;
+	var DocSummaryRE = evert_key(DocSummaryPIDDSI, "n");
+	var SummaryRE = evert_key(SummaryPIDSI, "n");
+	if (wb.Props) {
+		Keys = keys(wb.Props);
+		for (i = 0; i < Keys.length; ++i) (Object.prototype.hasOwnProperty.call(DocSummaryRE, Keys[i]) ? DSEntries : Object.prototype.hasOwnProperty.call(SummaryRE, Keys[i]) ? SEntries : CEntries).push([Keys[i], wb.Props[Keys[i]]]);
+	}
+	if (wb.Custprops) {
+		Keys = keys(wb.Custprops);
+		for (i = 0; i < Keys.length; ++i) if (!Object.prototype.hasOwnProperty.call(wb.Props || {}, Keys[i])) (Object.prototype.hasOwnProperty.call(DocSummaryRE, Keys[i]) ? DSEntries : Object.prototype.hasOwnProperty.call(SummaryRE, Keys[i]) ? SEntries : CEntries).push([Keys[i], wb.Custprops[Keys[i]]]);
+	}
+	var CEntries2 = [];
+	for (i = 0; i < CEntries.length; ++i) {
+		if (XLSPSSkip.indexOf(CEntries[i][0]) > -1 || PseudoPropsPairs.indexOf(CEntries[i][0]) > -1) continue;
+		if (CEntries[i][1] == null) continue;
+		CEntries2.push(CEntries[i]);
+	}
+	if (SEntries.length) CFB.utils.cfb_add(cfb, "/SummaryInformation", write_PropertySetStream(SEntries, PSCLSID.SI, SummaryRE, SummaryPIDSI));
+	if (DSEntries.length || CEntries2.length) CFB.utils.cfb_add(cfb, "/DocumentSummaryInformation", write_PropertySetStream(DSEntries, PSCLSID.DSI, DocSummaryRE, DocSummaryPIDDSI, CEntries2.length ? CEntries2 : null, PSCLSID.UDI));
+}
 function parse_xlscfb(cfb, options) {
 	if (!options) options = {};
 	fix_read_opts(options);
@@ -20194,6 +23644,28 @@ function parse_xlscfb(cfb, options) {
 	WorkbookP.Props = WorkbookP.Custprops = props;
 	if (options.bookFiles) WorkbookP.cfb = cfb;
 	return WorkbookP;
+}
+function write_xlscfb(wb, opts) {
+	var o = opts || {};
+	var cfb = CFB.utils.cfb_new({ root: "R" });
+	var wbpath = "/Workbook";
+	switch (o.bookType || "xls") {
+		case "xls": o.bookType = "biff8";
+		case "xla": if (!o.bookType) o.bookType = "xla";
+		case "biff8":
+			wbpath = "/Workbook";
+			o.biff = 8;
+			break;
+		case "biff5":
+			wbpath = "/Book";
+			o.biff = 5;
+			break;
+		default: throw new Error("invalid type " + o.bookType + " for XLS CFB");
+	}
+	CFB.utils.cfb_add(cfb, wbpath, write_biff_buf(wb, o));
+	if (o.biff == 8 && (wb.Props || wb.Custprops)) write_xls_props(wb, cfb);
+	if (o.biff == 8 && wb.vbaraw) fill_vba_xls(cfb, CFB.read(wb.vbaraw, { type: typeof wb.vbaraw == "string" ? "binary" : "buffer" }));
+	return cfb;
 }
 var XLSBRecordEnum = {
 	0: { f: parse_BrtRowHdr },
@@ -21541,6 +25013,613 @@ function write_biff_rec(ba, type, payload, length) {
 	o.write_shift(2, len);
 	if (len > 0 && is_buf(payload)) ba.push(payload);
 }
+function write_biff_continue(ba, type, payload, length) {
+	var len = length || (payload || []).length || 0;
+	if (len <= 8224) return write_biff_rec(ba, type, payload, len);
+	var t = type;
+	if (isNaN(t)) return;
+	var parts = payload.parts || [], sidx = 0;
+	var i = 0, w = 0;
+	while (w + (parts[sidx] || 8224) <= 8224) {
+		w += parts[sidx] || 8224;
+		sidx++;
+	}
+	var o = ba.next(4);
+	o.write_shift(2, t);
+	o.write_shift(2, w);
+	ba.push(payload.slice(i, i + w));
+	i += w;
+	while (i < len) {
+		o = ba.next(4);
+		o.write_shift(2, 60);
+		w = 0;
+		while (w + (parts[sidx] || 8224) <= 8224) {
+			w += parts[sidx] || 8224;
+			sidx++;
+		}
+		o.write_shift(2, w);
+		ba.push(payload.slice(i, i + w));
+		i += w;
+	}
+}
+function write_BIFF2BERR(r, c, val, t) {
+	var out = new_buf(9);
+	write_BIFF2Cell(out, r, c);
+	write_Bes(val, t || "b", out);
+	return out;
+}
+function write_BIFF2LABEL(r, c, val) {
+	var out = new_buf(8 + 2 * val.length);
+	write_BIFF2Cell(out, r, c);
+	out.write_shift(1, val.length);
+	out.write_shift(val.length, val, "sbcs");
+	return out.l < out.length ? out.slice(0, out.l) : out;
+}
+function write_comments_biff2(ba, comments) {
+	comments.forEach(function(data) {
+		var text = data[0].map(function(cc) {
+			return cc.t;
+		}).join("");
+		if (text.length <= 2048) return write_biff_rec(ba, 28, write_NOTE_BIFF2(text, data[1], data[2]));
+		write_biff_rec(ba, 28, write_NOTE_BIFF2(text.slice(0, 2048), data[1], data[2], text.length));
+		for (var i = 2048; i < text.length; i += 2048) write_biff_rec(ba, 28, write_NOTE_BIFF2(text.slice(i, Math.min(i + 2048, text.length)), -1, -1, Math.min(2048, text.length - i)));
+	});
+}
+function write_ws_biff2_cell(ba, cell, R, C, opts, date1904) {
+	var ifmt = 0;
+	if (cell.z != null) {
+		ifmt = opts._BIFF2FmtTable.indexOf(cell.z);
+		if (ifmt == -1) {
+			opts._BIFF2FmtTable.push(cell.z);
+			ifmt = opts._BIFF2FmtTable.length - 1;
+		}
+	}
+	var ixfe = 0;
+	if (cell.z != null) {
+		for (; ixfe < opts.cellXfs.length; ++ixfe) if (opts.cellXfs[ixfe].numFmtId == ifmt) break;
+		if (ixfe == opts.cellXfs.length) opts.cellXfs.push({ numFmtId: ifmt });
+	}
+	if (cell.v != null) switch (cell.t) {
+		case "d":
+		case "n":
+			var v = cell.t == "d" ? datenum(parseDate(cell.v, date1904), date1904) : cell.v;
+			if (opts.biff == 2 && v == (v | 0) && v >= 0 && v < 65536) write_biff_rec(ba, 2, write_BIFF2INT(R, C, v, ixfe, ifmt));
+			else if (isNaN(v)) write_biff_rec(ba, 5, write_BIFF2BERR(R, C, 36, "e"));
+			else if (!isFinite(v)) write_biff_rec(ba, 5, write_BIFF2BERR(R, C, 7, "e"));
+			else write_biff_rec(ba, 3, write_BIFF2NUM(R, C, v, ixfe, ifmt));
+			return;
+		case "b":
+		case "e":
+			write_biff_rec(ba, 5, write_BIFF2BERR(R, C, cell.v, cell.t));
+			return;
+		case "s":
+		case "str":
+			write_biff_rec(ba, 4, write_BIFF2LABEL(R, C, cell.v == null ? "" : String(cell.v).slice(0, 255)));
+			return;
+	}
+	write_biff_rec(ba, 1, write_BIFF2Cell(null, R, C));
+}
+function write_ws_biff2(ba, ws, idx, opts, wb) {
+	var dense = ws["!data"] != null;
+	var range = safe_decode_range(ws["!ref"] || "A1"), rr = "", cols = [];
+	if (range.e.c > 255 || range.e.r > 16383) {
+		if (opts.WTF) throw new Error("Range " + (ws["!ref"] || "A1") + " exceeds format limit A1:IV16384");
+		range.e.c = Math.min(range.e.c, 255);
+		range.e.r = Math.min(range.e.r, 16383);
+	}
+	var date1904 = (((wb || {}).Workbook || {}).WBProps || {}).date1904;
+	var row = [], comments = [];
+	for (var C = range.s.c; C <= range.e.c; ++C) cols[C] = encode_col(C);
+	for (var R = range.s.r; R <= range.e.r; ++R) {
+		if (dense) row = ws["!data"][R] || [];
+		rr = encode_row(R);
+		for (C = range.s.c; C <= range.e.c; ++C) {
+			var cell = dense ? row[C] : ws[cols[C] + rr];
+			if (!cell) continue;
+			write_ws_biff2_cell(ba, cell, R, C, opts, date1904);
+			if (cell.c) comments.push([
+				cell.c,
+				R,
+				C
+			]);
+		}
+	}
+	write_comments_biff2(ba, comments);
+}
+function write_biff2_buf(wb, opts) {
+	var o = opts || {};
+	var ba = buf_array();
+	var idx = 0;
+	for (var i = 0; i < wb.SheetNames.length; ++i) if (wb.SheetNames[i] == o.sheet) idx = i;
+	if (idx == 0 && !!o.sheet && wb.SheetNames[0] != o.sheet) throw new Error("Sheet not found: " + o.sheet);
+	write_biff_rec(ba, o.biff == 4 ? 1033 : o.biff == 3 ? 521 : 9, write_BOF(wb, 16, o));
+	if (((wb.Workbook || {}).WBProps || {}).date1904) write_biff_rec(ba, 34, writebool(true));
+	o.cellXfs = [{ numFmtId: 0 }];
+	o._BIFF2FmtTable = ["General"];
+	o._Fonts = [];
+	var body = buf_array();
+	write_ws_biff2(body, wb.Sheets[wb.SheetNames[idx]], idx, o, wb);
+	o._BIFF2FmtTable.forEach(function(f) {
+		if (o.biff <= 3) write_biff_rec(ba, 30, write_BIFF2Format(f));
+		else write_biff_rec(ba, 1054, write_BIFF4Format(f));
+	});
+	o.cellXfs.forEach(function(xf) {
+		switch (o.biff) {
+			case 2:
+				write_biff_rec(ba, 67, write_BIFF2XF(xf));
+				break;
+			case 3:
+				write_biff_rec(ba, 579, write_BIFF3XF(xf));
+				break;
+			case 4: write_biff_rec(ba, 1091, write_BIFF4XF(xf));
+		}
+	});
+	delete o._BIFF2FmtTable;
+	delete o.cellXfs;
+	delete o._Fonts;
+	ba.push(body.end());
+	write_biff_rec(ba, 10);
+	return ba.end();
+}
+var b8oid = 1;
+var b8ocnts = [];
+function write_MsoDrawingGroup() {
+	var buf = new_buf(82 + 8 * b8ocnts.length);
+	buf.write_shift(2, 15);
+	buf.write_shift(2, 61440);
+	buf.write_shift(4, 74 + 8 * b8ocnts.length);
+	buf.write_shift(2, 0);
+	buf.write_shift(2, 61446);
+	buf.write_shift(4, 16 + 8 * b8ocnts.length);
+	buf.write_shift(4, b8oid);
+	buf.write_shift(4, b8ocnts.length + 1);
+	var acc = 0;
+	for (var i = 0; i < b8ocnts.length; ++i) acc += b8ocnts[i] && b8ocnts[i][1] || 0;
+	buf.write_shift(4, acc);
+	buf.write_shift(4, b8ocnts.length);
+	b8ocnts.forEach(function(b8) {
+		buf.write_shift(4, b8[0]);
+		buf.write_shift(4, b8[2]);
+	});
+	buf.write_shift(2, 51);
+	buf.write_shift(2, 61451);
+	buf.write_shift(4, 18);
+	buf.write_shift(2, 191);
+	buf.write_shift(4, 524296);
+	buf.write_shift(2, 385);
+	buf.write_shift(4, 134217793);
+	buf.write_shift(2, 448);
+	buf.write_shift(4, 134217792);
+	buf.write_shift(2, 64);
+	buf.write_shift(2, 61726);
+	buf.write_shift(4, 16);
+	buf.write_shift(4, 134217741);
+	buf.write_shift(4, 134217740);
+	buf.write_shift(4, 134217751);
+	buf.write_shift(4, 268435703);
+	return buf;
+}
+function write_comments_biff8(ba, comments) {
+	var notes = [], sz = 0, pl = buf_array(), baseid = b8oid;
+	var _oasc;
+	comments.forEach(function(c, ci) {
+		var author = "";
+		var text = c[0].map(function(t) {
+			if (t.a && !author) author = t.a;
+			return t.t;
+		}).join("");
+		++b8oid;
+		var oasc = new_buf(150);
+		oasc.write_shift(2, 15);
+		oasc.write_shift(2, 61444);
+		oasc.write_shift(4, 150);
+		oasc.write_shift(2, 3234);
+		oasc.write_shift(2, 61450);
+		oasc.write_shift(4, 8);
+		oasc.write_shift(4, b8oid);
+		oasc.write_shift(4, 2560);
+		oasc.write_shift(2, 227);
+		oasc.write_shift(2, 61451);
+		oasc.write_shift(4, 84);
+		oasc.write_shift(2, 128);
+		oasc.write_shift(4, 0);
+		oasc.write_shift(2, 139);
+		oasc.write_shift(4, 2);
+		oasc.write_shift(2, 191);
+		oasc.write_shift(4, 524296);
+		oasc.write_shift(2, 344);
+		oasc.l += 4;
+		oasc.write_shift(2, 385);
+		oasc.write_shift(4, 134217808);
+		oasc.write_shift(2, 387);
+		oasc.write_shift(4, 134217808);
+		oasc.write_shift(2, 389);
+		oasc.write_shift(4, 268435700);
+		oasc.write_shift(2, 447);
+		oasc.write_shift(4, 1048592);
+		oasc.write_shift(2, 448);
+		oasc.write_shift(4, 134217809);
+		oasc.write_shift(2, 451);
+		oasc.write_shift(4, 268435700);
+		oasc.write_shift(2, 513);
+		oasc.write_shift(4, 134217809);
+		oasc.write_shift(2, 515);
+		oasc.write_shift(4, 268435700);
+		oasc.write_shift(2, 575);
+		oasc.write_shift(4, 196609);
+		oasc.write_shift(2, 959);
+		oasc.write_shift(4, 131072 | (c[0].hidden ? 2 : 0));
+		oasc.l += 2;
+		oasc.write_shift(2, 61456);
+		oasc.write_shift(4, 18);
+		oasc.write_shift(2, 3);
+		oasc.write_shift(2, c[2] + 2);
+		oasc.l += 2;
+		oasc.write_shift(2, c[1] + 1);
+		oasc.l += 2;
+		oasc.write_shift(2, c[2] + 4);
+		oasc.l += 2;
+		oasc.write_shift(2, c[1] + 5);
+		oasc.l += 2;
+		oasc.l += 2;
+		oasc.write_shift(2, 61457);
+		oasc.l += 4;
+		oasc.l = 150;
+		if (ci == 0) _oasc = oasc;
+		else write_biff_rec(pl, 236, oasc);
+		sz += 150;
+		var obj = new_buf(52);
+		obj.write_shift(2, 21);
+		obj.write_shift(2, 18);
+		obj.write_shift(2, 25);
+		obj.write_shift(2, b8oid);
+		obj.write_shift(2, 0);
+		obj.l = 22;
+		obj.write_shift(2, 13);
+		obj.write_shift(2, 22);
+		obj.write_shift(4, 1651663474);
+		obj.write_shift(4, 2503426821);
+		obj.write_shift(4, 2150634280);
+		obj.write_shift(4, 1768515844 + b8oid * 256);
+		obj.write_shift(2, 0);
+		obj.write_shift(4, 0);
+		obj.l += 4;
+		write_biff_rec(pl, 93, obj);
+		var oact = new_buf(8);
+		oact.l += 2;
+		oact.write_shift(2, 61453);
+		oact.l += 4;
+		write_biff_rec(pl, 236, oact);
+		sz += 8;
+		var txo = new_buf(18);
+		txo.write_shift(2, 18);
+		txo.l += 8;
+		txo.write_shift(2, text.length);
+		txo.write_shift(2, 16);
+		txo.l += 4;
+		write_biff_rec(pl, 438, txo);
+		var cont = new_buf(1 + text.length);
+		cont.write_shift(1, 0);
+		cont.write_shift(text.length, text, "sbcs");
+		write_biff_rec(pl, 60, cont);
+		var conf = new_buf(16);
+		conf.l += 8;
+		conf.write_shift(2, text.length);
+		conf.l += 6;
+		write_biff_rec(pl, 60, conf);
+		var notesh = new_buf(12 + author.length);
+		notesh.write_shift(2, c[1]);
+		notesh.write_shift(2, c[2]);
+		notesh.write_shift(2, 0 | (c[0].hidden ? 0 : 2));
+		notesh.write_shift(2, b8oid);
+		notesh.write_shift(2, author.length);
+		notesh.write_shift(1, 0);
+		notesh.write_shift(author.length, author, "sbcs");
+		notesh.l++;
+		notes.push(notesh);
+	});
+	var hdr = new_buf(80);
+	hdr.write_shift(2, 15);
+	hdr.write_shift(2, 61442);
+	hdr.write_shift(4, sz + hdr.length - 8);
+	hdr.write_shift(2, 16);
+	hdr.write_shift(2, 61448);
+	hdr.write_shift(4, 8);
+	hdr.write_shift(4, comments.length + 1);
+	hdr.write_shift(4, b8oid);
+	hdr.write_shift(2, 15);
+	hdr.write_shift(2, 61443);
+	hdr.write_shift(4, sz + 48);
+	hdr.write_shift(2, 15);
+	hdr.write_shift(2, 61444);
+	hdr.write_shift(4, 40);
+	hdr.write_shift(2, 1);
+	hdr.write_shift(2, 61449);
+	hdr.write_shift(4, 16);
+	hdr.l += 16;
+	hdr.write_shift(2, 2);
+	hdr.write_shift(2, 61450);
+	hdr.write_shift(4, 8);
+	hdr.write_shift(4, baseid);
+	hdr.write_shift(4, 5);
+	write_biff_rec(ba, 236, _oasc ? bconcat([hdr, _oasc]) : hdr);
+	ba.push(pl.end());
+	notes.forEach(function(n) {
+		write_biff_rec(ba, 28, n);
+	});
+	b8ocnts.push([
+		baseid,
+		comments.length + 1,
+		b8oid
+	]);
+	++b8oid;
+}
+function write_FONTS_biff8(ba, data, opts) {
+	write_biff_rec(ba, 49, write_Font({
+		sz: 12,
+		color: { theme: 1 },
+		name: "Arial",
+		family: 2,
+		scheme: "minor"
+	}, opts));
+}
+function write_FMTS_biff8(ba, NF, opts) {
+	if (!NF) return;
+	[
+		[5, 8],
+		[23, 26],
+		[41, 44],
+		[50, 392]
+	].forEach(function(r) {
+		for (var i = r[0]; i <= r[1]; ++i) if (NF[i] != null) write_biff_rec(ba, 1054, write_Format(i, NF[i], opts));
+	});
+}
+function write_FEAT(ba, ws) {
+	var o = new_buf(19);
+	o.write_shift(4, 2151);
+	o.write_shift(4, 0);
+	o.write_shift(4, 0);
+	o.write_shift(2, 3);
+	o.write_shift(1, 1);
+	o.write_shift(4, 0);
+	write_biff_rec(ba, 2151, o);
+	o = new_buf(39);
+	o.write_shift(4, 2152);
+	o.write_shift(4, 0);
+	o.write_shift(4, 0);
+	o.write_shift(2, 3);
+	o.write_shift(1, 0);
+	o.write_shift(4, 0);
+	o.write_shift(2, 1);
+	o.write_shift(4, 4);
+	o.write_shift(2, 0);
+	write_Ref8U(safe_decode_range(ws["!ref"] || "A1"), o);
+	o.write_shift(4, 4);
+	write_biff_rec(ba, 2152, o);
+}
+function write_CELLXFS_biff8(ba, opts) {
+	for (var i = 0; i < 16; ++i) write_biff_rec(ba, 224, write_XF({
+		numFmtId: 0,
+		style: true
+	}, 0, opts));
+	opts.cellXfs.forEach(function(c) {
+		write_biff_rec(ba, 224, write_XF(c, 0, opts));
+	});
+}
+function write_ws_biff8_hlinks(ba, ws) {
+	for (var R = 0; R < ws["!links"].length; ++R) {
+		var HL = ws["!links"][R];
+		write_biff_rec(ba, 440, write_HLink(HL));
+		if (HL[1].Tooltip) write_biff_rec(ba, 2048, write_HLinkTooltip(HL));
+	}
+	delete ws["!links"];
+}
+function write_ws_cols_biff8(ba, cols) {
+	if (!cols) return;
+	var cnt = 0;
+	cols.forEach(function(col, idx) {
+		if (++cnt <= 256 && col) write_biff_rec(ba, 125, write_ColInfo(col_obj_w(idx, col), idx));
+	});
+}
+function write_ws_biff8_cell(ba, cell, R, C, opts, date1904) {
+	var os = 16 + get_cell_style(opts.cellXfs, cell, opts);
+	if (cell.v == null && !cell.bf) {
+		write_biff_rec(ba, 513, write_XLSCell(R, C, os));
+		return;
+	}
+	if (cell.bf) write_biff_rec(ba, 6, write_Formula(cell, R, C, opts, os));
+	else switch (cell.t) {
+		case "d":
+		case "n":
+			var v = cell.t == "d" ? datenum(parseDate(cell.v, date1904), date1904) : cell.v;
+			if (isNaN(v)) write_biff_rec(ba, 517, write_BoolErr(R, C, 36, os, opts, "e"));
+			else if (!isFinite(v)) write_biff_rec(ba, 517, write_BoolErr(R, C, 7, os, opts, "e"));
+			else write_biff_rec(ba, 515, write_Number(R, C, v, os, opts));
+			break;
+		case "b":
+		case "e":
+			write_biff_rec(ba, 517, write_BoolErr(R, C, cell.v, os, opts, cell.t));
+			break;
+		case "s":
+		case "str":
+			if (opts.bookSST) write_biff_rec(ba, 253, write_LabelSst(R, C, get_sst_id(opts.Strings, cell.v == null ? "" : String(cell.v), opts.revStrings), os, opts));
+			else write_biff_rec(ba, 516, write_Label(R, C, (cell.v == null ? "" : String(cell.v)).slice(0, 255), os, opts));
+			break;
+		default: write_biff_rec(ba, 513, write_XLSCell(R, C, os));
+	}
+}
+function write_ws_biff8(idx, opts, wb) {
+	var ba = buf_array();
+	var s = wb.SheetNames[idx], ws = wb.Sheets[s] || {};
+	var _WB = (wb || {}).Workbook || {};
+	var _sheet = (_WB.Sheets || [])[idx] || {};
+	var dense = ws["!data"] != null;
+	var b8 = opts.biff == 8, rr = "", cols = [];
+	var range = safe_decode_range(ws["!ref"] || "A1");
+	var MAX_ROWS = b8 ? 65536 : 16384;
+	if (range.e.c > 255 || range.e.r >= MAX_ROWS) {
+		if (opts.WTF) throw new Error("Range " + (ws["!ref"] || "A1") + " exceeds format limit A1:IV" + MAX_ROWS);
+		range.e.c = Math.min(range.e.c, 255);
+		range.e.r = Math.min(range.e.r, MAX_ROWS - 1);
+	}
+	write_biff_rec(ba, 2057, write_BOF(wb, 16, opts));
+	write_biff_rec(ba, 13, writeuint16(1));
+	write_biff_rec(ba, 12, writeuint16(100));
+	write_biff_rec(ba, 15, writebool(true));
+	write_biff_rec(ba, 17, writebool(false));
+	write_biff_rec(ba, 16, write_Xnum(.001));
+	write_biff_rec(ba, 95, writebool(true));
+	write_biff_rec(ba, 42, writebool(false));
+	write_biff_rec(ba, 43, writebool(false));
+	write_biff_rec(ba, 130, writeuint16(1));
+	write_biff_rec(ba, 128, write_Guts([0, 0]));
+	write_biff_rec(ba, 131, writebool(false));
+	write_biff_rec(ba, 132, writebool(false));
+	if (b8) write_ws_cols_biff8(ba, ws["!cols"]);
+	write_biff_rec(ba, 512, write_Dimensions(range, opts));
+	var date1904 = (((wb || {}).Workbook || {}).WBProps || {}).date1904;
+	if (b8) ws["!links"] = [];
+	for (var C = range.s.c; C <= range.e.c; ++C) cols[C] = encode_col(C);
+	var comments = [];
+	var row = [];
+	for (var R = range.s.r; R <= range.e.r; ++R) {
+		if (dense) row = ws["!data"][R] || [];
+		rr = encode_row(R);
+		for (C = range.s.c; C <= range.e.c; ++C) {
+			var cell = dense ? row[C] : ws[cols[C] + rr];
+			if (!cell) continue;
+			write_ws_biff8_cell(ba, cell, R, C, opts, date1904);
+			if (b8 && cell.l) ws["!links"].push([cols[C] + rr, cell.l]);
+			if (cell.c) comments.push([
+				cell.c,
+				R,
+				C
+			]);
+		}
+	}
+	var cname = _sheet.CodeName || _sheet.name || s;
+	if (b8) write_comments_biff8(ba, comments);
+	else write_comments_biff2(ba, comments);
+	if (b8) write_biff_rec(ba, 574, write_Window2((_WB.Views || [])[0]));
+	if (b8 && (ws["!merges"] || []).length) write_biff_rec(ba, 229, write_MergeCells(ws["!merges"]));
+	if (b8) write_ws_biff8_hlinks(ba, ws);
+	write_biff_rec(ba, 442, write_XLUnicodeString(cname, opts));
+	if (b8) write_FEAT(ba, ws);
+	write_biff_rec(ba, 10);
+	return ba.end();
+}
+function write_biff8_global(wb, bufs, opts) {
+	var A = buf_array();
+	var _WB = (wb || {}).Workbook || {};
+	var _sheets = _WB.Sheets || [];
+	var _wb = _WB.WBProps || {};
+	var b8 = opts.biff == 8, b5 = opts.biff == 5;
+	write_biff_rec(A, 2057, write_BOF(wb, 5, opts));
+	if (opts.bookType == "xla") write_biff_rec(A, 135);
+	write_biff_rec(A, 225, b8 ? writeuint16(1200) : null);
+	write_biff_rec(A, 193, writezeroes(2));
+	if (b5) write_biff_rec(A, 191);
+	if (b5) write_biff_rec(A, 192);
+	write_biff_rec(A, 226);
+	write_biff_rec(A, 92, write_WriteAccess("SheetJS", opts));
+	write_biff_rec(A, 66, writeuint16(b8 ? 1200 : 1252));
+	if (b8) write_biff_rec(A, 353, writeuint16(0));
+	if (b8) write_biff_rec(A, 448);
+	write_biff_rec(A, 317, write_RRTabId(wb.SheetNames.length));
+	if (b8 && wb.vbaraw) write_biff_rec(A, 211);
+	if (b8 && wb.vbaraw) write_biff_rec(A, 442, write_XLUnicodeString(_wb.CodeName || "ThisWorkbook", opts));
+	write_biff_rec(A, 156, writeuint16(17));
+	write_biff_rec(A, 25, writebool(false));
+	write_biff_rec(A, 18, writebool(false));
+	write_biff_rec(A, 19, writeuint16(0));
+	if (b8) write_biff_rec(A, 431, writebool(false));
+	if (b8) write_biff_rec(A, 444, writeuint16(0));
+	write_biff_rec(A, 61, write_Window1(opts));
+	write_biff_rec(A, 64, writebool(false));
+	write_biff_rec(A, 141, writeuint16(0));
+	write_biff_rec(A, 34, writebool(safe1904(wb) == "true"));
+	write_biff_rec(A, 14, writebool(true));
+	if (b8) write_biff_rec(A, 439, writebool(false));
+	write_biff_rec(A, 218, writeuint16(0));
+	write_FONTS_biff8(A, wb, opts);
+	write_FMTS_biff8(A, wb.SSF, opts);
+	write_CELLXFS_biff8(A, opts);
+	if (b8) write_biff_rec(A, 352, writebool(false));
+	var a = A.end();
+	var C = buf_array();
+	if (b8) write_biff_rec(C, 140, write_Country());
+	if (b8 && b8ocnts.length) write_biff_rec(C, 235, write_MsoDrawingGroup());
+	if (b8 && opts.Strings) write_biff_continue(C, 252, write_SST(opts.Strings, opts));
+	write_biff_rec(C, 10);
+	var c = C.end();
+	var B = buf_array();
+	var blen = 0, j = 0;
+	for (j = 0; j < wb.SheetNames.length; ++j) blen += (b8 ? 12 : 11) + (b8 ? 2 : 1) * wb.SheetNames[j].length;
+	var start = a.length + blen + c.length;
+	for (j = 0; j < wb.SheetNames.length; ++j) {
+		var _sheet = _sheets[j] || {};
+		write_biff_rec(B, 133, write_BoundSheet8({
+			pos: start,
+			hs: _sheet.Hidden || 0,
+			dt: 0,
+			name: wb.SheetNames[j]
+		}, opts));
+		start += bufs[j].length;
+	}
+	var b = B.end();
+	if (blen != b.length) throw new Error("BS8 " + blen + " != " + b.length);
+	var out = [];
+	if (a.length) out.push(a);
+	if (b.length) out.push(b);
+	if (c.length) out.push(c);
+	return bconcat(out);
+}
+function write_biff8_buf(wb, opts) {
+	var o = opts || {};
+	var bufs = [];
+	if (wb && !wb.SSF) wb.SSF = dup(table_fmt);
+	if (wb && wb.SSF) {
+		make_ssf();
+		SSF_load_table(wb.SSF);
+		o.revssf = evert_num(wb.SSF);
+		o.revssf[wb.SSF[65535]] = 0;
+		o.ssf = wb.SSF;
+	}
+	b8oid = 1;
+	b8ocnts = [];
+	o.Strings = [];
+	o.Strings.Count = 0;
+	o.Strings.Unique = 0;
+	fix_write_opts(o);
+	o.cellXfs = [];
+	get_cell_style(o.cellXfs, {}, { revssf: { "General": 0 } });
+	if (!wb.Props) wb.Props = {};
+	for (var i = 0; i < wb.SheetNames.length; ++i) bufs[bufs.length] = write_ws_biff8(i, o, wb);
+	bufs.unshift(write_biff8_global(wb, bufs, o));
+	return bconcat(bufs);
+}
+function write_biff_buf(wb, opts) {
+	for (var i = 0; i <= wb.SheetNames.length; ++i) {
+		var ws = wb.Sheets[wb.SheetNames[i]];
+		if (!ws || !ws["!ref"]) continue;
+		var range = decode_range(ws["!ref"]);
+		if (range.e.c > 255) {
+			if (typeof console != "undefined" && console.error) console.error("Worksheet '" + wb.SheetNames[i] + "' extends beyond column IV (255).  Data may be lost.");
+		}
+		if (range.e.r > 65535) {
+			if (typeof console != "undefined" && console.error) console.error("Worksheet '" + wb.SheetNames[i] + "' extends beyond row 65536.  Data may be lost.");
+		}
+	}
+	var o = opts || {};
+	switch (o.biff || 2) {
+		case 8:
+		case 5: return write_biff8_buf(wb, opts);
+		case 4:
+		case 3:
+		case 2: return write_biff2_buf(wb, opts);
+	}
+	throw new Error("invalid type " + o.bookType + " for BIFF");
+}
 function html_to_sheet(str, _opts) {
 	var opts = _opts || {};
 	var dense = opts.dense != null ? opts.dense : DENSE;
@@ -22736,6 +26815,553 @@ function parse_fods(data, opts) {
 	wb.bookType = "fods";
 	return wb;
 }
+var write_styles_ods = /* @__PURE__ */ (function() {
+	var master_styles = [
+		"<office:master-styles>",
+		"<style:master-page style:name=\"mp1\" style:page-layout-name=\"mp1\">",
+		"<style:header/>",
+		"<style:header-left style:display=\"false\"/>",
+		"<style:footer/>",
+		"<style:footer-left style:display=\"false\"/>",
+		"</style:master-page>",
+		"</office:master-styles>"
+	].join("");
+	var payload = "<office:document-styles " + wxt_helper({
+		"xmlns:office": "urn:oasis:names:tc:opendocument:xmlns:office:1.0",
+		"xmlns:table": "urn:oasis:names:tc:opendocument:xmlns:table:1.0",
+		"xmlns:style": "urn:oasis:names:tc:opendocument:xmlns:style:1.0",
+		"xmlns:text": "urn:oasis:names:tc:opendocument:xmlns:text:1.0",
+		"xmlns:draw": "urn:oasis:names:tc:opendocument:xmlns:drawing:1.0",
+		"xmlns:fo": "urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0",
+		"xmlns:xlink": "http://www.w3.org/1999/xlink",
+		"xmlns:dc": "http://purl.org/dc/elements/1.1/",
+		"xmlns:number": "urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0",
+		"xmlns:svg": "urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0",
+		"xmlns:of": "urn:oasis:names:tc:opendocument:xmlns:of:1.2",
+		"office:version": "1.2"
+	}) + ">" + master_styles + "</office:document-styles>";
+	return function wso() {
+		return XML_HEADER + payload;
+	};
+})();
+function write_number_format_ods(nf, nfidx) {
+	var type = "number", payload = "", nopts = { "style:name": nfidx }, c = "", i = 0;
+	nf = nf.replace(/"[$]"/g, "$");
+	j: {
+		if (nf.indexOf(";") > -1) {
+			console.error("Unsupported ODS Style Map exported.  Using first branch of " + nf);
+			nf = nf.slice(0, nf.indexOf(";"));
+		}
+		if (nf == "@") {
+			type = "text";
+			payload = "<number:text-content/>";
+			break j;
+		}
+		if (nf.indexOf(/\$/) > -1) type = "currency";
+		if (nf[i] == "\"") {
+			c = "";
+			while (nf[++i] != "\"" || nf[++i] == "\"") c += nf[i];
+			--i;
+			if (nf[i + 1] == "*") {
+				i++;
+				payload += "<number:fill-character>" + escapexml(c.replace(/""/g, "\"")) + "</number:fill-character>";
+			} else payload += "<number:text>" + escapexml(c.replace(/""/g, "\"")) + "</number:text>";
+			nf = nf.slice(i + 1);
+			i = 0;
+		}
+		var t = nf.match(/# (\?+)\/(\?+)/);
+		if (t) {
+			payload += writextag("number:fraction", null, {
+				"number:min-integer-digits": 0,
+				"number:min-numerator-digits": t[1].length,
+				"number:max-denominator-value": Math.max(+t[1].replace(/./g, "9"), +t[2].replace(/./g, "9"))
+			});
+			break j;
+		}
+		if (t = nf.match(/# (\?+)\/(\d+)/)) {
+			payload += writextag("number:fraction", null, {
+				"number:min-integer-digits": 0,
+				"number:min-numerator-digits": t[1].length,
+				"number:denominator-value": +t[2]
+			});
+			break j;
+		}
+		if (t = nf.match(/\b(\d+)(|\.\d+)%/)) {
+			type = "percentage";
+			payload += writextag("number:number", null, {
+				"number:decimal-places": t[2] && t.length - 1 || 0,
+				"number:min-decimal-places": t[2] && t.length - 1 || 0,
+				"number:min-integer-digits": t[1].length
+			}) + "<number:text>%</number:text>";
+			break j;
+		}
+		var has_time = false;
+		if ([
+			"y",
+			"m",
+			"d"
+		].indexOf(nf[0]) > -1) {
+			type = "date";
+			k: for (; i < nf.length; ++i) switch (c = nf[i].toLowerCase()) {
+				case "h":
+				case "s":
+					has_time = true;
+					--i;
+					break k;
+				case "m": l: for (var h = i + 1; h < nf.length; ++h) switch (nf[h]) {
+					case "y":
+					case "d": break l;
+					case "h":
+					case "s":
+						has_time = true;
+						--i;
+						break k;
+				}
+				case "y":
+				case "d":
+					while ((nf[++i] || "").toLowerCase() == c[0]) c += c[0];
+					--i;
+					switch (c) {
+						case "y":
+						case "yy":
+							payload += "<number:year/>";
+							break;
+						case "yyy":
+						case "yyyy":
+							payload += "<number:year number:style=\"long\"/>";
+							break;
+						case "mmmmm": console.error("ODS has no equivalent of format |mmmmm|");
+						case "m":
+						case "mm":
+						case "mmm":
+						case "mmmm":
+							payload += "<number:month number:style=\"" + (c.length % 2 ? "short" : "long") + "\" number:textual=\"" + (c.length >= 3 ? "true" : "false") + "\"/>";
+							break;
+						case "d":
+						case "dd":
+							payload += "<number:day number:style=\"" + (c.length % 2 ? "short" : "long") + "\"/>";
+							break;
+						case "ddd":
+						case "dddd": payload += "<number:day-of-week number:style=\"" + (c.length % 2 ? "short" : "long") + "\"/>";
+					}
+					break;
+				case "\"":
+					while (nf[++i] != "\"" || nf[++i] == "\"") c += nf[i];
+					--i;
+					payload += "<number:text>" + escapexml(c.slice(1).replace(/""/g, "\"")) + "</number:text>";
+					break;
+				case "\\":
+					c = nf[++i];
+					payload += "<number:text>" + escapexml(c) + "</number:text>";
+					break;
+				case "/":
+				case ":":
+					payload += "<number:text>" + escapexml(c) + "</number:text>";
+					break;
+				default: console.error("unrecognized character " + c + " in ODF format " + nf);
+			}
+			if (!has_time) break j;
+			nf = nf.slice(i + 1);
+			i = 0;
+		}
+		if (nf.match(/^\[?[hms]/)) {
+			if (type == "number") type = "time";
+			if (nf.match(/\[/)) {
+				nf = nf.replace(/[\[\]]/g, "");
+				nopts["number:truncate-on-overflow"] = "false";
+			}
+			for (; i < nf.length; ++i) switch (c = nf[i].toLowerCase()) {
+				case "h":
+				case "m":
+				case "s":
+					while ((nf[++i] || "").toLowerCase() == c[0]) c += c[0];
+					--i;
+					switch (c) {
+						case "h":
+						case "hh":
+							payload += "<number:hours number:style=\"" + (c.length % 2 ? "short" : "long") + "\"/>";
+							break;
+						case "m":
+						case "mm":
+							payload += "<number:minutes number:style=\"" + (c.length % 2 ? "short" : "long") + "\"/>";
+							break;
+						case "s":
+						case "ss":
+							if (nf[i + 1] == ".") do {
+								c += nf[i + 1];
+								++i;
+							} while (nf[i + 1] == "0");
+							payload += "<number:seconds number:style=\"" + (c.match("ss") ? "long" : "short") + "\"" + (c.match(/\./) ? " number:decimal-places=\"" + (c.match(/0+/) || [""])[0].length + "\"" : "") + "/>";
+					}
+					break;
+				case "\"":
+					while (nf[++i] != "\"" || nf[++i] == "\"") c += nf[i];
+					--i;
+					payload += "<number:text>" + escapexml(c.slice(1).replace(/""/g, "\"")) + "</number:text>";
+					break;
+				case "/":
+				case ":":
+					payload += "<number:text>" + escapexml(c) + "</number:text>";
+					break;
+				case "a":
+					if (nf.slice(i, i + 3).toLowerCase() == "a/p") {
+						payload += "<number:am-pm/>";
+						i += 2;
+						break;
+					}
+					if (nf.slice(i, i + 5).toLowerCase() == "am/pm") {
+						payload += "<number:am-pm/>";
+						i += 4;
+						break;
+					}
+				default: console.error("unrecognized character " + c + " in ODF format " + nf);
+			}
+			break j;
+		}
+		if (nf.indexOf(/\$/) > -1) type = "currency";
+		if (nf[0] == "$") {
+			payload += "<number:currency-symbol number:language=\"en\" number:country=\"US\">$</number:currency-symbol>";
+			nf = nf.slice(1);
+			i = 0;
+		}
+		i = 0;
+		if (nf[i] == "\"") {
+			while (nf[++i] != "\"" || nf[++i] == "\"") c += nf[i];
+			--i;
+			if (nf[i + 1] == "*") {
+				i++;
+				payload += "<number:fill-character>" + escapexml(c.replace(/""/g, "\"")) + "</number:fill-character>";
+			} else payload += "<number:text>" + escapexml(c.replace(/""/g, "\"")) + "</number:text>";
+			nf = nf.slice(i + 1);
+			i = 0;
+		}
+		var np = nf.match(/([#0][0#,]*)(\.[0#]*|)(E[+]?0*|)/i);
+		if (!np || !np[0]) console.error("Could not find numeric part of " + nf);
+		else {
+			var base = np[1].replace(/,/g, "");
+			payload += "<number:" + (np[3] ? "scientific-" : "") + "number number:min-integer-digits=\"" + (base.indexOf("0") == -1 ? "0" : base.length - base.indexOf("0")) + "\"" + (np[0].indexOf(",") > -1 ? " number:grouping=\"true\"" : "") + (np[2] && " number:decimal-places=\"" + (np[2].length - 1) + "\"" || " number:decimal-places=\"0\"") + (np[3] && np[3].indexOf("+") > -1 ? " number:forced-exponent-sign=\"true\"" : "") + (np[3] ? " number:min-exponent-digits=\"" + np[3].match(/0+/)[0].length + "\"" : "") + "></number:" + (np[3] ? "scientific-" : "") + "number>";
+			i = np.index + np[0].length;
+		}
+		if (nf[i] == "\"") {
+			c = "";
+			while (nf[++i] != "\"" || nf[++i] == "\"") c += nf[i];
+			--i;
+			payload += "<number:text>" + escapexml(c.replace(/""/g, "\"")) + "</number:text>";
+		}
+	}
+	if (!payload) {
+		console.error("Could not generate ODS number format for |" + nf + "|");
+		return "";
+	}
+	return writextag("number:" + type + "-style", payload, nopts);
+}
+function write_names_ods(Names, SheetNames, idx) {
+	var scoped = [];
+	for (var namei = 0; namei < Names.length; ++namei) {
+		var name = Names[namei];
+		if (!name) continue;
+		if (name.Sheet == (idx == -1 ? null : idx)) scoped.push(name);
+	}
+	if (!scoped.length) return "";
+	return "      <table:named-expressions>\n" + scoped.map(function(name) {
+		var odsref = (idx == -1 ? "$" : "") + csf_to_ods_3D(name.Ref);
+		return "        " + writextag("table:named-range", null, {
+			"table:name": name.Name,
+			"table:cell-range-address": odsref,
+			"table:base-cell-address": odsref.replace(/[\.][^\.]*$/, ".$A$1")
+		});
+	}).join("\n") + "\n      </table:named-expressions>\n";
+}
+var write_content_ods = /* @__PURE__ */ (function() {
+	var write_text_p = function(text, span) {
+		return escapexml(text).replace(/  +/g, function($$) {
+			return "<text:s text:c=\"" + $$.length + "\"/>";
+		}).replace(/\t/g, "<text:tab/>").replace(/\n/g, span ? "<text:line-break/>" : "</text:p><text:p>").replace(/^ /, "<text:s/>").replace(/ $/, "<text:s/>");
+	};
+	var null_cell_xml = "          <table:table-cell />\n";
+	var write_ws = function(ws, wb, i, opts, nfs, date1904) {
+		var o = [];
+		o.push("      <table:table table:name=\"" + escapexml(wb.SheetNames[i]) + "\" table:style-name=\"ta1\">\n");
+		var R = 0, C = 0, range = decode_range(ws["!ref"] || "A1");
+		var marr = ws["!merges"] || [], mi = 0;
+		var dense = ws["!data"] != null;
+		if (ws["!cols"]) for (C = 0; C <= range.e.c; ++C) o.push("        <table:table-column" + (ws["!cols"][C] ? " table:style-name=\"co" + ws["!cols"][C].ods + "\"" : "") + "></table:table-column>\n");
+		var H = "", ROWS = ws["!rows"] || [];
+		for (R = 0; R < range.s.r; ++R) {
+			H = ROWS[R] ? " table:style-name=\"ro" + ROWS[R].ods + "\"" : "";
+			o.push("        <table:table-row" + H + "></table:table-row>\n");
+		}
+		for (; R <= range.e.r; ++R) {
+			H = ROWS[R] ? " table:style-name=\"ro" + ROWS[R].ods + "\"" : "";
+			o.push("        <table:table-row" + H + ">\n");
+			for (C = 0; C < range.s.c; ++C) o.push(null_cell_xml);
+			for (; C <= range.e.c; ++C) {
+				var skip = false, ct = {}, textp = "";
+				for (mi = 0; mi != marr.length; ++mi) {
+					if (marr[mi].s.c > C) continue;
+					if (marr[mi].s.r > R) continue;
+					if (marr[mi].e.c < C) continue;
+					if (marr[mi].e.r < R) continue;
+					if (marr[mi].s.c != C || marr[mi].s.r != R) skip = true;
+					ct["table:number-columns-spanned"] = marr[mi].e.c - marr[mi].s.c + 1;
+					ct["table:number-rows-spanned"] = marr[mi].e.r - marr[mi].s.r + 1;
+					break;
+				}
+				if (skip) {
+					o.push("          <table:covered-table-cell/>\n");
+					continue;
+				}
+				var ref = encode_cell({
+					r: R,
+					c: C
+				}), cell = dense ? (ws["!data"][R] || [])[C] : ws[ref];
+				if (cell && cell.f) {
+					ct["table:formula"] = escapexml(csf_to_ods_formula(cell.f));
+					if (cell.F) {
+						if (cell.F.slice(0, ref.length) == ref) {
+							var _Fref = decode_range(cell.F);
+							ct["table:number-matrix-columns-spanned"] = _Fref.e.c - _Fref.s.c + 1;
+							ct["table:number-matrix-rows-spanned"] = _Fref.e.r - _Fref.s.r + 1;
+						}
+					}
+				}
+				if (!cell) {
+					o.push(null_cell_xml);
+					continue;
+				}
+				switch (cell.t) {
+					case "b":
+						textp = cell.v ? "TRUE" : "FALSE";
+						ct["office:value-type"] = "boolean";
+						ct["office:boolean-value"] = cell.v ? "true" : "false";
+						break;
+					case "n":
+						if (!isFinite(cell.v)) {
+							if (isNaN(cell.v)) {
+								textp = "#NUM!";
+								ct["table:formula"] = "of:=#NUM!";
+							} else {
+								textp = "#DIV/0!";
+								ct["table:formula"] = "of:=" + (cell.v < 0 ? "-" : "") + "1/0";
+							}
+							ct["office:string-value"] = "";
+							ct["office:value-type"] = "string";
+							ct["calcext:value-type"] = "error";
+						} else {
+							textp = cell.w || String(cell.v || 0);
+							ct["office:value-type"] = "float";
+							ct["office:value"] = cell.v || 0;
+						}
+						break;
+					case "s":
+					case "str":
+						textp = cell.v == null ? "" : cell.v;
+						ct["office:value-type"] = "string";
+						break;
+					case "d":
+						textp = cell.w || parseDate(cell.v, date1904).toISOString();
+						ct["office:value-type"] = "date";
+						ct["office:date-value"] = parseDate(cell.v, date1904).toISOString();
+						ct["table:style-name"] = "ce1";
+						break;
+					default:
+						o.push(null_cell_xml);
+						continue;
+				}
+				var text_p = write_text_p(textp);
+				if (cell.l && cell.l.Target) {
+					var _tgt = cell.l.Target;
+					_tgt = _tgt.charAt(0) == "#" ? "#" + csf_to_ods_3D(_tgt.slice(1)) : _tgt;
+					if (_tgt.charAt(0) != "#" && !_tgt.match(/^\w+:/)) _tgt = "../" + _tgt;
+					text_p = writextag("text:a", text_p, { "xlink:href": _tgt.replace(/&/g, "&amp;") });
+				}
+				if (nfs[cell.z]) ct["table:style-name"] = "ce" + nfs[cell.z].slice(1);
+				var payload = writextag("text:p", text_p, {});
+				if (cell.c) {
+					var acreator = "", apayload = "", aprops = {};
+					for (var ci = 0; ci < cell.c.length; ++ci) {
+						if (!acreator && cell.c[ci].a) acreator = cell.c[ci].a;
+						apayload += "<text:p>" + write_text_p(cell.c[ci].t) + "</text:p>";
+					}
+					if (!cell.c.hidden) aprops["office:display"] = true;
+					payload = writextag("office:annotation", apayload, aprops) + payload;
+				}
+				o.push("          " + writextag("table:table-cell", payload, ct) + "\n");
+			}
+			o.push("        </table:table-row>\n");
+		}
+		if ((wb.Workbook || {}).Names) o.push(write_names_ods(wb.Workbook.Names, wb.SheetNames, i));
+		o.push("      </table:table>\n");
+		return o.join("");
+	};
+	var write_automatic_styles_ods = function(o, wb) {
+		o.push(" <office:automatic-styles>\n");
+		var cidx = 0;
+		wb.SheetNames.map(function(n) {
+			return wb.Sheets[n];
+		}).forEach(function(ws) {
+			if (!ws) return;
+			if (ws["!cols"]) {
+				for (var C = 0; C < ws["!cols"].length; ++C) if (ws["!cols"][C]) {
+					var colobj = ws["!cols"][C];
+					if (colobj.width == null && colobj.wpx == null && colobj.wch == null) continue;
+					process_col(colobj);
+					colobj.ods = cidx;
+					var w = ws["!cols"][C].wpx + "px";
+					o.push("  <style:style style:name=\"co" + cidx + "\" style:family=\"table-column\">\n");
+					o.push("   <style:table-column-properties fo:break-before=\"auto\" style:column-width=\"" + w + "\"/>\n");
+					o.push("  </style:style>\n");
+					++cidx;
+				}
+			}
+		});
+		var ridx = 0;
+		wb.SheetNames.map(function(n) {
+			return wb.Sheets[n];
+		}).forEach(function(ws) {
+			if (!ws) return;
+			if (ws["!rows"]) {
+				for (var R = 0; R < ws["!rows"].length; ++R) if (ws["!rows"][R]) {
+					ws["!rows"][R].ods = ridx;
+					var h = ws["!rows"][R].hpx + "px";
+					o.push("  <style:style style:name=\"ro" + ridx + "\" style:family=\"table-row\">\n");
+					o.push("   <style:table-row-properties fo:break-before=\"auto\" style:row-height=\"" + h + "\"/>\n");
+					o.push("  </style:style>\n");
+					++ridx;
+				}
+			}
+		});
+		o.push("  <style:style style:name=\"ta1\" style:family=\"table\" style:master-page-name=\"mp1\">\n");
+		o.push("   <style:table-properties table:display=\"true\" style:writing-mode=\"lr-tb\"/>\n");
+		o.push("  </style:style>\n");
+		o.push("  <number:date-style style:name=\"N37\" number:automatic-order=\"true\">\n");
+		o.push("   <number:month number:style=\"long\"/>\n");
+		o.push("   <number:text>/</number:text>\n");
+		o.push("   <number:day number:style=\"long\"/>\n");
+		o.push("   <number:text>/</number:text>\n");
+		o.push("   <number:year/>\n");
+		o.push("  </number:date-style>\n");
+		var nfs = {};
+		var nfi = 69;
+		wb.SheetNames.map(function(n) {
+			return wb.Sheets[n];
+		}).forEach(function(ws) {
+			if (!ws) return;
+			var dense = ws["!data"] != null;
+			if (!ws["!ref"]) return;
+			var range = decode_range(ws["!ref"]);
+			for (var R = 0; R <= range.e.r; ++R) for (var C = 0; C <= range.e.c; ++C) {
+				var c = dense ? (ws["!data"][R] || [])[C] : ws[encode_cell({
+					r: R,
+					c: C
+				})];
+				if (!c || !c.z || c.z.toLowerCase() == "general") continue;
+				if (!nfs[c.z]) {
+					var out = write_number_format_ods(c.z, "N" + nfi);
+					if (out) {
+						nfs[c.z] = "N" + nfi;
+						++nfi;
+						o.push(out + "\n");
+					}
+				}
+			}
+		});
+		o.push("  <style:style style:name=\"ce1\" style:family=\"table-cell\" style:parent-style-name=\"Default\" style:data-style-name=\"N37\"/>\n");
+		keys(nfs).forEach(function(nf) {
+			o.push("<style:style style:name=\"ce" + nfs[nf].slice(1) + "\" style:family=\"table-cell\" style:parent-style-name=\"Default\" style:data-style-name=\"" + nfs[nf] + "\"/>\n");
+		});
+		o.push(" </office:automatic-styles>\n");
+		return nfs;
+	};
+	return function wcx(wb, opts) {
+		var o = [XML_HEADER];
+		var attr = wxt_helper({
+			"xmlns:office": "urn:oasis:names:tc:opendocument:xmlns:office:1.0",
+			"xmlns:table": "urn:oasis:names:tc:opendocument:xmlns:table:1.0",
+			"xmlns:style": "urn:oasis:names:tc:opendocument:xmlns:style:1.0",
+			"xmlns:text": "urn:oasis:names:tc:opendocument:xmlns:text:1.0",
+			"xmlns:draw": "urn:oasis:names:tc:opendocument:xmlns:drawing:1.0",
+			"xmlns:fo": "urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0",
+			"xmlns:xlink": "http://www.w3.org/1999/xlink",
+			"xmlns:dc": "http://purl.org/dc/elements/1.1/",
+			"xmlns:meta": "urn:oasis:names:tc:opendocument:xmlns:meta:1.0",
+			"xmlns:number": "urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0",
+			"xmlns:presentation": "urn:oasis:names:tc:opendocument:xmlns:presentation:1.0",
+			"xmlns:svg": "urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0",
+			"xmlns:chart": "urn:oasis:names:tc:opendocument:xmlns:chart:1.0",
+			"xmlns:dr3d": "urn:oasis:names:tc:opendocument:xmlns:dr3d:1.0",
+			"xmlns:math": "http://www.w3.org/1998/Math/MathML",
+			"xmlns:form": "urn:oasis:names:tc:opendocument:xmlns:form:1.0",
+			"xmlns:script": "urn:oasis:names:tc:opendocument:xmlns:script:1.0",
+			"xmlns:ooo": "http://openoffice.org/2004/office",
+			"xmlns:ooow": "http://openoffice.org/2004/writer",
+			"xmlns:oooc": "http://openoffice.org/2004/calc",
+			"xmlns:dom": "http://www.w3.org/2001/xml-events",
+			"xmlns:xforms": "http://www.w3.org/2002/xforms",
+			"xmlns:xsd": "http://www.w3.org/2001/XMLSchema",
+			"xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
+			"xmlns:sheet": "urn:oasis:names:tc:opendocument:sh33tjs:1.0",
+			"xmlns:rpt": "http://openoffice.org/2005/report",
+			"xmlns:of": "urn:oasis:names:tc:opendocument:xmlns:of:1.2",
+			"xmlns:xhtml": "http://www.w3.org/1999/xhtml",
+			"xmlns:grddl": "http://www.w3.org/2003/g/data-view#",
+			"xmlns:tableooo": "http://openoffice.org/2009/table",
+			"xmlns:drawooo": "http://openoffice.org/2010/draw",
+			"xmlns:calcext": "urn:org:documentfoundation:names:experimental:calc:xmlns:calcext:1.0",
+			"xmlns:loext": "urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0",
+			"xmlns:field": "urn:openoffice:names:experimental:ooo-ms-interop:xmlns:field:1.0",
+			"xmlns:formx": "urn:openoffice:names:experimental:ooxml-odf-interop:xmlns:form:1.0",
+			"xmlns:css3t": "http://www.w3.org/TR/css3-text/",
+			"office:version": "1.2"
+		});
+		var fods = wxt_helper({
+			"xmlns:config": "urn:oasis:names:tc:opendocument:xmlns:config:1.0",
+			"office:mimetype": "application/vnd.oasis.opendocument.spreadsheet"
+		});
+		if (opts.bookType == "fods") {
+			o.push("<office:document" + attr + fods + ">\n");
+			o.push(write_meta_ods().replace(/<office:document-meta[^<>]*?>/, "").replace(/<\/office:document-meta>/, "") + "\n");
+		} else o.push("<office:document-content" + attr + ">\n");
+		var nfs = write_automatic_styles_ods(o, wb);
+		o.push("  <office:body>\n");
+		o.push("    <office:spreadsheet>\n");
+		if (((wb.Workbook || {}).WBProps || {}).date1904) o.push("      <table:calculation-settings table:case-sensitive=\"false\" table:search-criteria-must-apply-to-whole-cell=\"true\" table:use-wildcards=\"true\" table:use-regular-expressions=\"false\" table:automatic-find-labels=\"false\">\n        <table:null-date table:date-value=\"1904-01-01\"/>\n      </table:calculation-settings>\n");
+		for (var i = 0; i != wb.SheetNames.length; ++i) o.push(write_ws(wb.Sheets[wb.SheetNames[i]], wb, i, opts, nfs, ((wb.Workbook || {}).WBProps || {}).date1904));
+		if ((wb.Workbook || {}).Names) o.push(write_names_ods(wb.Workbook.Names, wb.SheetNames, -1));
+		o.push("    </office:spreadsheet>\n");
+		o.push("  </office:body>\n");
+		if (opts.bookType == "fods") o.push("</office:document>");
+		else o.push("</office:document-content>");
+		return o.join("");
+	};
+})();
+function write_ods(wb, opts) {
+	if (opts.bookType == "fods") return write_content_ods(wb, opts);
+	var zip = zip_new();
+	var f = "";
+	var manifest = [];
+	var rdf = [];
+	f = "mimetype";
+	zip_add_file(zip, f, "application/vnd.oasis.opendocument.spreadsheet");
+	f = "content.xml";
+	zip_add_file(zip, f, write_content_ods(wb, opts));
+	manifest.push([f, "text/xml"]);
+	rdf.push([f, "ContentFile"]);
+	f = "styles.xml";
+	zip_add_file(zip, f, write_styles_ods(wb, opts));
+	manifest.push([f, "text/xml"]);
+	rdf.push([f, "StylesFile"]);
+	f = "meta.xml";
+	zip_add_file(zip, f, XML_HEADER + write_meta_ods());
+	manifest.push([f, "text/xml"]);
+	rdf.push([f, "MetadataFile"]);
+	f = "manifest.rdf";
+	zip_add_file(zip, f, write_rdf(rdf));
+	manifest.push([f, "application/rdf+xml"]);
+	f = "META-INF/manifest.xml";
+	zip_add_file(zip, f, write_manifest(manifest));
+	return zip;
+}
 /*! sheetjs (C) 2013-present SheetJS -- http://sheetjs.com */
 var subarray = function() {
 	try {
@@ -22756,6 +27382,9 @@ function u8_to_dataview(array) {
 }
 function u8str(u8) {
 	return typeof TextDecoder != "undefined" ? new TextDecoder().decode(u8) : utf8read(a2s(u8));
+}
+function stru8(str) {
+	return typeof TextEncoder != "undefined" ? new TextEncoder().encode(str) : s2a(utf8write(str));
 }
 function u8concat(u8a) {
 	var len = 0;
@@ -22783,6 +27412,14 @@ function readDecimal128LE(buf, offset) {
 	for (var j = offset + 13; j >= offset; --j) mantissa = mantissa * 256 + buf[j];
 	return (buf[offset + 15] & 128 ? -mantissa : mantissa) * Math.pow(10, exp - 6176);
 }
+function writeDecimal128LE(buf, offset, value) {
+	var exp = Math.floor(value == 0 ? 0 : Math.LOG10E * Math.log(Math.abs(value))) + 6176 - 16;
+	var mantissa = value / Math.pow(10, exp - 6176);
+	buf[offset + 15] |= exp >> 7;
+	buf[offset + 14] |= (exp & 127) << 1;
+	for (var i = 0; mantissa >= 1; ++i, mantissa /= 256) buf[offset + i] = mantissa & 255;
+	buf[offset + 15] |= value >= 0 ? 0 : 128;
+}
 function parse_varint49(buf, ptr) {
 	var l = ptr.l;
 	var usz = buf[l] & 127;
@@ -22805,6 +27442,48 @@ function parse_varint49(buf, ptr) {
 	}
 	ptr.l = l;
 	return usz;
+}
+function write_varint49(v) {
+	var usz = /* @__PURE__ */ new Uint8Array(7);
+	usz[0] = v & 127;
+	var L = 1;
+	sz: if (v > 127) {
+		usz[L - 1] |= 128;
+		usz[L] = v >> 7 & 127;
+		++L;
+		if (v <= 16383) break sz;
+		usz[L - 1] |= 128;
+		usz[L] = v >> 14 & 127;
+		++L;
+		if (v <= 2097151) break sz;
+		usz[L - 1] |= 128;
+		usz[L] = v >> 21 & 127;
+		++L;
+		if (v <= 268435455) break sz;
+		usz[L - 1] |= 128;
+		usz[L] = v / 256 >>> 21 & 127;
+		++L;
+		if (v <= 34359738367) break sz;
+		usz[L - 1] |= 128;
+		usz[L] = v / 65536 >>> 21 & 127;
+		++L;
+		if (v <= 4398046511103) break sz;
+		usz[L - 1] |= 128;
+		usz[L] = v / 16777216 >>> 21 & 127;
+		++L;
+	}
+	return usz[subarray](0, L);
+}
+function parse_packed_varints(buf) {
+	var ptr = { l: 0 };
+	var out = [];
+	while (ptr.l < buf.length) out.push(parse_varint49(buf, ptr));
+	return out;
+}
+function write_packed_varints(nums) {
+	return u8concat(nums.map(function(x) {
+		return write_varint49(x);
+	}));
 }
 function varint_to_i32(buf) {
 	var l = 0, i32 = buf[l] & 127;
@@ -22857,6 +27536,19 @@ function parse_shallow(buf) {
 	}
 	return out;
 }
+function write_shallow(proto) {
+	var out = [];
+	proto.forEach(function(field, idx) {
+		if (idx == 0) return;
+		field.forEach(function(item) {
+			if (!item.data) return;
+			out.push(write_varint49(idx * 8 + item.type));
+			if (item.type == 2) out.push(write_varint49(item.data.length));
+			out.push(item.data);
+		});
+	});
+	return u8concat(out);
+}
 function mappa(data, cb) {
 	return (data == null ? void 0 : data.map(function(d) {
 		return cb(d.data);
@@ -22886,6 +27578,42 @@ function parse_iwa_file(buf) {
 		out.push(res);
 	}
 	return out;
+}
+function write_iwa_file(ias) {
+	var bufs = [];
+	ias.forEach(function(ia) {
+		var ai = [
+			[],
+			[{
+				data: write_varint49(ia.id),
+				type: 0
+			}],
+			[]
+		];
+		if (ia.merge != null) ai[3] = [{
+			data: write_varint49(+!!ia.merge),
+			type: 0
+		}];
+		var midata = [];
+		ia.messages.forEach(function(mi) {
+			midata.push(mi.data);
+			mi.meta[3] = [{
+				type: 0,
+				data: write_varint49(mi.data.length)
+			}];
+			ai[2].push({
+				data: write_shallow(mi.meta),
+				type: 2
+			});
+		});
+		var aipayload = write_shallow(ai);
+		bufs.push(write_varint49(aipayload.length));
+		bufs.push(aipayload);
+		midata.forEach(function(mid) {
+			return bufs.push(mid);
+		});
+	});
+	return u8concat(bufs);
 }
 function parse_snappy_chunk(type, buf) {
 	if (type != 0) throw new Error("Unexpected Snappy chunk type ".concat(type));
@@ -22972,6 +27700,57 @@ function decompress_iwa_file(buf) {
 	}
 	if (l !== buf.length) throw new Error("data is not a valid framed stream!");
 	return out.length == 1 ? out[0] : u8concat(out);
+}
+function compress_iwa_file(buf) {
+	var out = [];
+	var l = 0;
+	while (l < buf.length) {
+		var c = Math.min(buf.length - l, 268435455);
+		var frame = /* @__PURE__ */ new Uint8Array(4);
+		out.push(frame);
+		var usz = write_varint49(c);
+		var L = usz.length;
+		out.push(usz);
+		if (c <= 60) {
+			L++;
+			out.push(new Uint8Array([c - 1 << 2]));
+		} else if (c <= 256) {
+			L += 2;
+			out.push(new Uint8Array([240, c - 1 & 255]));
+		} else if (c <= 65536) {
+			L += 3;
+			out.push(new Uint8Array([
+				244,
+				c - 1 & 255,
+				c - 1 >> 8 & 255
+			]));
+		} else if (c <= 16777216) {
+			L += 4;
+			out.push(new Uint8Array([
+				248,
+				c - 1 & 255,
+				c - 1 >> 8 & 255,
+				c - 1 >> 16 & 255
+			]));
+		} else if (c <= 4294967296) {
+			L += 5;
+			out.push(new Uint8Array([
+				252,
+				c - 1 & 255,
+				c - 1 >> 8 & 255,
+				c - 1 >> 16 & 255,
+				c - 1 >>> 24 & 255
+			]));
+		}
+		out.push(buf[subarray](l, l + c));
+		L += c;
+		frame[0] = 0;
+		frame[1] = L & 255;
+		frame[2] = L >> 8 & 255;
+		frame[3] = L >> 16 & 255;
+		l += c;
+	}
+	return u8concat(out);
 }
 var numbers_lut_new = function() {
 	return {
@@ -23282,6 +28061,145 @@ function parse_new_storage(buf, lut, opts) {
 	if (t == 7) ret.v /= 86400;
 	return ret;
 }
+function write_new_storage(cell, lut) {
+	var out = /* @__PURE__ */ new Uint8Array(32), dv = u8_to_dataview(out), l = 12, fields = 0;
+	out[0] = 5;
+	switch (cell.t) {
+		case "n":
+			if (cell.z && fmt_is_date(cell.z)) {
+				out[1] = 5;
+				dv.setFloat64(l, (numdate(cell.v + 1462).getTime() - Date.UTC(2001, 0, 1)) / 1e3, true);
+				fields |= 4;
+				l += 8;
+				break;
+			} else {
+				out[1] = 2;
+				writeDecimal128LE(out, l, cell.v);
+				fields |= 1;
+				l += 16;
+			}
+			break;
+		case "b":
+			out[1] = 6;
+			dv.setFloat64(l, cell.v ? 1 : 0, true);
+			fields |= 2;
+			l += 8;
+			break;
+		case "s":
+			var s = cell.v == null ? "" : String(cell.v);
+			if (cell.l) {
+				var irsst = lut.rsst.findIndex(function(v) {
+					var _a;
+					return v.v == s && v.l == ((_a = cell.l) == null ? void 0 : _a.Target);
+				});
+				if (irsst == -1) lut.rsst[irsst = lut.rsst.length] = {
+					v: s,
+					l: cell.l.Target
+				};
+				out[1] = 9;
+				dv.setUint32(l, irsst, true);
+				fields |= 16;
+				l += 4;
+			} else {
+				var isst = lut.sst.indexOf(s);
+				if (isst == -1) lut.sst[isst = lut.sst.length] = s;
+				out[1] = 3;
+				dv.setUint32(l, isst, true);
+				fields |= 8;
+				l += 4;
+			}
+			break;
+		case "d":
+			out[1] = 5;
+			dv.setFloat64(l, (cell.v.getTime() - Date.UTC(2001, 0, 1)) / 1e3, true);
+			fields |= 4;
+			l += 8;
+			break;
+		case "z":
+			out[1] = 0;
+			break;
+		default: throw "unsupported cell type " + cell.t;
+	}
+	if (cell.c) {
+		lut.cmnt.push(s5s_to_iwa_comment(cell.c));
+		dv.setUint32(l, lut.cmnt.length - 1, true);
+		fields |= 524288;
+		l += 4;
+	}
+	dv.setUint32(8, fields, true);
+	return out[subarray](0, l);
+}
+function write_old_storage(cell, lut) {
+	var out = /* @__PURE__ */ new Uint8Array(32), dv = u8_to_dataview(out), l = 12, fields = 0, s = "";
+	out[0] = 4;
+	switch (cell.t) {
+		case "n": break;
+		case "b": break;
+		case "s":
+			s = cell.v == null ? "" : String(cell.v);
+			if (cell.l) {
+				var irsst = lut.rsst.findIndex(function(v) {
+					var _a;
+					return v.v == s && v.l == ((_a = cell.l) == null ? void 0 : _a.Target);
+				});
+				if (irsst == -1) lut.rsst[irsst = lut.rsst.length] = {
+					v: s,
+					l: cell.l.Target
+				};
+				out[1] = 9;
+				dv.setUint32(l, irsst, true);
+				fields |= 512;
+				l += 4;
+			}
+			break;
+		case "d": break;
+		case "e": break;
+		case "z": break;
+		default: throw "unsupported cell type " + cell.t;
+	}
+	if (cell.c) {
+		dv.setUint32(l, lut.cmnt.length - 1, true);
+		fields |= 4096;
+		l += 4;
+	}
+	switch (cell.t) {
+		case "n":
+			out[1] = 2;
+			dv.setFloat64(l, cell.v, true);
+			fields |= 32;
+			l += 8;
+			break;
+		case "b":
+			out[1] = 6;
+			dv.setFloat64(l, cell.v ? 1 : 0, true);
+			fields |= 32;
+			l += 8;
+			break;
+		case "s":
+			s = cell.v == null ? "" : String(cell.v);
+			if (cell.l) {} else {
+				var isst = lut.sst.indexOf(s);
+				if (isst == -1) lut.sst[isst = lut.sst.length] = s;
+				out[1] = 3;
+				dv.setUint32(l, isst, true);
+				fields |= 16;
+				l += 4;
+			}
+			break;
+		case "d":
+			out[1] = 5;
+			dv.setFloat64(l, (cell.v.getTime() - Date.UTC(2001, 0, 1)) / 1e3, true);
+			fields |= 64;
+			l += 8;
+			break;
+		case "z":
+			out[1] = 0;
+			break;
+		default: throw "unsupported cell type " + cell.t;
+	}
+	dv.setUint32(8, fields, true);
+	return out[subarray](0, l);
+}
 function parse_cell_storage(buf, lut, opts) {
 	switch (buf[0]) {
 		case 0:
@@ -23295,6 +28213,33 @@ function parse_cell_storage(buf, lut, opts) {
 }
 function parse_TSP_Reference(buf) {
 	return varint_to_i32(parse_shallow(buf)[1][0].data);
+}
+function write_TSP_Reference(idx) {
+	return write_shallow([[], [{
+		type: 0,
+		data: write_varint49(idx)
+	}]]);
+}
+function numbers_add_oref(iwa, ref) {
+	var _a;
+	var orefs = ((_a = iwa.messages[0].meta[5]) == null ? void 0 : _a[0]) ? parse_packed_varints(iwa.messages[0].meta[5][0].data) : [];
+	if (orefs.indexOf(ref) == -1) {
+		orefs.push(ref);
+		iwa.messages[0].meta[5] = [{
+			type: 2,
+			data: write_packed_varints(orefs)
+		}];
+	}
+}
+function numbers_del_oref(iwa, ref) {
+	var _a;
+	var orefs = ((_a = iwa.messages[0].meta[5]) == null ? void 0 : _a[0]) ? parse_packed_varints(iwa.messages[0].meta[5][0].data) : [];
+	iwa.messages[0].meta[5] = [{
+		type: 2,
+		data: write_packed_varints(orefs.filter(function(r) {
+			return r != ref;
+		}))
+	}];
 }
 function parse_TST_TableDataList(M, root) {
 	var pb = parse_shallow(root.data);
@@ -23444,6 +28389,21 @@ function iwa_to_s5s_comment(iwa) {
 			a: reply.a,
 			T: true
 		});
+	});
+	return out;
+}
+function s5s_to_iwa_comment(s5s) {
+	var out = {
+		a: "",
+		t: "",
+		replies: []
+	};
+	for (var i = 0; i < s5s.length; ++i) if (i == 0) {
+		out.a = s5s[i].a;
+		out.t = s5s[i].t;
+	} else out.replies.push({
+		a: s5s[i].a,
+		t: s5s[i].t
 	});
 	return out;
 }
@@ -23639,6 +28599,1419 @@ function parse_numbers_iwa(cfb, opts) {
 	if (!docroot) throw new Error("Cannot find Document root");
 	return parse_TN_DocumentArchive(M, docroot, opts);
 }
+function write_TST_TileRowInfo(data, lut, wide) {
+	var _a, _b, _c;
+	var tri = [
+		[],
+		[{
+			type: 0,
+			data: write_varint49(0)
+		}],
+		[{
+			type: 0,
+			data: write_varint49(0)
+		}],
+		[{
+			type: 2,
+			data: new Uint8Array([])
+		}],
+		[{
+			type: 2,
+			data: new Uint8Array(Array.from({ length: 510 }, function() {
+				return 255;
+			}))
+		}],
+		[{
+			type: 0,
+			data: write_varint49(5)
+		}],
+		[{
+			type: 2,
+			data: new Uint8Array([])
+		}],
+		[{
+			type: 2,
+			data: new Uint8Array(Array.from({ length: 510 }, function() {
+				return 255;
+			}))
+		}],
+		[{
+			type: 0,
+			data: write_varint49(1)
+		}]
+	];
+	if (!((_a = tri[6]) == null ? void 0 : _a[0]) || !((_b = tri[7]) == null ? void 0 : _b[0])) throw "Mutation only works on post-BNC storages!";
+	var cnt = 0;
+	if (tri[7][0].data.length < 2 * data.length) {
+		var new_7 = new Uint8Array(2 * data.length);
+		new_7.set(tri[7][0].data);
+		tri[7][0].data = new_7;
+	}
+	if (tri[4][0].data.length < 2 * data.length) {
+		var new_4 = new Uint8Array(2 * data.length);
+		new_4.set(tri[4][0].data);
+		tri[4][0].data = new_4;
+	}
+	var dv = u8_to_dataview(tri[7][0].data), last_offset = 0, cell_storage = [];
+	var _dv = u8_to_dataview(tri[4][0].data), _last_offset = 0, _cell_storage = [];
+	var width = wide ? 4 : 1;
+	for (var C = 0; C < data.length; ++C) {
+		if (data[C] == null || data[C].t == "z" && !((_c = data[C].c) == null ? void 0 : _c.length) || data[C].t == "e") {
+			dv.setUint16(C * 2, 65535, true);
+			_dv.setUint16(C * 2, 65535);
+			continue;
+		}
+		dv.setUint16(C * 2, last_offset / width, true);
+		_dv.setUint16(C * 2, _last_offset / width, true);
+		var celload, _celload;
+		switch (data[C].t) {
+			case "d":
+				if (data[C].v instanceof Date) {
+					celload = write_new_storage(data[C], lut);
+					_celload = write_old_storage(data[C], lut);
+					break;
+				}
+				celload = write_new_storage(data[C], lut);
+				_celload = write_old_storage(data[C], lut);
+				break;
+			case "s":
+			case "n":
+			case "b":
+			case "z":
+				celload = write_new_storage(data[C], lut);
+				_celload = write_old_storage(data[C], lut);
+				break;
+			default: throw new Error("Unsupported value " + data[C]);
+		}
+		cell_storage.push(celload);
+		last_offset += celload.length;
+		_cell_storage.push(_celload);
+		_last_offset += _celload.length;
+		++cnt;
+	}
+	tri[2][0].data = write_varint49(cnt);
+	tri[5][0].data = write_varint49(5);
+	for (; C < tri[7][0].data.length / 2; ++C) {
+		dv.setUint16(C * 2, 65535, true);
+		_dv.setUint16(C * 2, 65535, true);
+	}
+	tri[6][0].data = u8concat(cell_storage);
+	tri[3][0].data = u8concat(_cell_storage);
+	tri[8] = [{
+		type: 0,
+		data: write_varint49(wide ? 1 : 0)
+	}];
+	return tri;
+}
+function write_iwam(type, payload) {
+	return {
+		meta: [[], [{
+			type: 0,
+			data: write_varint49(type)
+		}]],
+		data: payload
+	};
+}
+function get_unique_msgid(dep, dependents) {
+	if (!dependents.last) dependents.last = 927262;
+	for (var i = dependents.last; i < 2e6; ++i) if (!dependents[i]) {
+		dependents[dependents.last = i] = dep;
+		return i;
+	}
+	throw new Error("Too many messages");
+}
+function build_numbers_deps(cfb) {
+	var dependents = {};
+	var indices = [];
+	cfb.FileIndex.map(function(fi, idx) {
+		return [fi, cfb.FullPaths[idx]];
+	}).forEach(function(row) {
+		var fi = row[0], fp = row[1];
+		if (fi.type != 2) return;
+		if (!fi.name.match(/\.iwa/)) return;
+		if (fi.content[0] != 0) return;
+		parse_iwa_file(decompress_iwa_file(fi.content)).forEach(function(packet) {
+			indices.push(packet.id);
+			dependents[packet.id] = {
+				deps: [],
+				location: fp,
+				type: varint_to_i32(packet.messages[0].meta[1][0].data)
+			};
+		});
+	});
+	cfb.FileIndex.forEach(function(fi) {
+		if (!fi.name.match(/\.iwa/)) return;
+		if (fi.content[0] != 0) return;
+		parse_iwa_file(decompress_iwa_file(fi.content)).forEach(function(ia) {
+			ia.messages.forEach(function(mess) {
+				[5, 6].forEach(function(f) {
+					if (!mess.meta[f]) return;
+					mess.meta[f].forEach(function(x) {
+						dependents[ia.id].deps.push(varint_to_i32(x.data));
+					});
+				});
+			});
+		});
+	});
+	return dependents;
+}
+function write_TSP_Color_RGB(r, g, b) {
+	return write_shallow([
+		[],
+		[{
+			type: 0,
+			data: write_varint49(1)
+		}],
+		[],
+		[{
+			type: 5,
+			data: new Uint8Array(Float32Array.from([r / 255]).buffer)
+		}],
+		[{
+			type: 5,
+			data: new Uint8Array(Float32Array.from([g / 255]).buffer)
+		}],
+		[{
+			type: 5,
+			data: new Uint8Array(Float32Array.from([b / 255]).buffer)
+		}],
+		[{
+			type: 5,
+			data: new Uint8Array(Float32Array.from([1]).buffer)
+		}],
+		[],
+		[],
+		[],
+		[],
+		[],
+		[{
+			type: 0,
+			data: write_varint49(1)
+		}]
+	]);
+}
+function get_author_color(n) {
+	switch (n) {
+		case 0: return write_TSP_Color_RGB(99, 222, 171);
+		case 1: return write_TSP_Color_RGB(162, 197, 240);
+		case 2: return write_TSP_Color_RGB(255, 189, 189);
+	}
+	return write_TSP_Color_RGB(Math.random() * 255, Math.random() * 255, Math.random() * 255);
+}
+function write_numbers_iwa(wb, opts) {
+	if (!opts || !opts.numbers) throw new Error("Must pass a `numbers` option -- check the README");
+	var cfb = CFB.read(opts.numbers, { type: "base64" });
+	var deps = build_numbers_deps(cfb);
+	var docroot = numbers_iwa_find(cfb, deps, 1);
+	if (docroot == null) throw "Could not find message ".concat(1, " in Numbers template");
+	var sheetrefs = mappa(parse_shallow(docroot.messages[0].data)[1], parse_TSP_Reference);
+	if (sheetrefs.length > 1) throw new Error("Template NUMBERS file must have exactly one sheet");
+	wb.SheetNames.forEach(function(name, idx) {
+		if (idx >= 1) {
+			numbers_add_ws(cfb, deps, idx + 1);
+			docroot = numbers_iwa_find(cfb, deps, 1);
+			sheetrefs = mappa(parse_shallow(docroot.messages[0].data)[1], parse_TSP_Reference);
+		}
+		write_numbers_ws(cfb, deps, wb.Sheets[name], name, idx, sheetrefs[idx]);
+	});
+	return cfb;
+}
+function numbers_iwa_doit(cfb, deps, id, cb) {
+	var entry = CFB.find(cfb, deps[id].location);
+	if (!entry) throw "Could not find ".concat(deps[id].location, " in Numbers template");
+	var x = parse_iwa_file(decompress_iwa_file(entry.content));
+	cb(x.find(function(packet) {
+		return packet.id == id;
+	}), x);
+	entry.content = compress_iwa_file(write_iwa_file(x));
+	entry.size = entry.content.length;
+}
+function numbers_iwa_find(cfb, deps, id) {
+	var entry = CFB.find(cfb, deps[id].location);
+	if (!entry) throw "Could not find ".concat(deps[id].location, " in Numbers template");
+	return parse_iwa_file(decompress_iwa_file(entry.content)).find(function(packet) {
+		return packet.id == id;
+	});
+}
+function numbers_add_meta(mlist, newid, newloc) {
+	mlist[3].push({
+		type: 2,
+		data: write_shallow([
+			[],
+			[{
+				type: 0,
+				data: write_varint49(newid)
+			}],
+			[{
+				type: 2,
+				data: stru8(newloc.replace(/-[\s\S]*$/, ""))
+			}],
+			[{
+				type: 2,
+				data: stru8(newloc)
+			}],
+			[{
+				type: 2,
+				data: new Uint8Array([
+					2,
+					0,
+					0
+				])
+			}],
+			[{
+				type: 2,
+				data: new Uint8Array([
+					2,
+					0,
+					0
+				])
+			}],
+			[],
+			[],
+			[],
+			[],
+			[{
+				type: 0,
+				data: write_varint49(0)
+			}],
+			[],
+			[{
+				type: 0,
+				data: write_varint49(0)
+			}]
+		])
+	});
+	mlist[1] = [{
+		type: 0,
+		data: write_varint49(Math.max(newid + 1, varint_to_i32(mlist[1][0].data)))
+	}];
+}
+function numbers_add_msg(cfb, type, msg, path, deps, id) {
+	if (!id) id = get_unique_msgid({
+		deps: [],
+		location: "",
+		type
+	}, deps);
+	var loc = "".concat(path, "-").concat(id, ".iwa");
+	deps[id].location = "Root Entry" + loc;
+	CFB.utils.cfb_add(cfb, loc, compress_iwa_file(write_iwa_file([{
+		id,
+		messages: [write_iwam(type, write_shallow(msg))]
+	}])));
+	var newloc = loc.replace(/^[\/]/, "").replace(/^Index\//, "").replace(/\.iwa$/, "");
+	numbers_iwa_doit(cfb, deps, 2, function(ai) {
+		var mlist = parse_shallow(ai.messages[0].data);
+		numbers_add_meta(mlist, id || 0, newloc);
+		ai.messages[0].data = write_shallow(mlist);
+	});
+	return id;
+}
+function numbers_meta_add_dep(mlist, deps, id, dep) {
+	var loc = deps[id].location.replace(/^Root Entry\//, "").replace(/^Index\//, "").replace(/\.iwa$/, "");
+	var parentidx = mlist[3].findIndex(function(m) {
+		var _a, _b;
+		var mm = parse_shallow(m.data);
+		if ((_a = mm[3]) == null ? void 0 : _a[0]) return u8str(mm[3][0].data) == loc;
+		if (((_b = mm[2]) == null ? void 0 : _b[0]) && u8str(mm[2][0].data) == loc) return true;
+		return false;
+	});
+	var parent = parse_shallow(mlist[3][parentidx].data);
+	if (!parent[6]) parent[6] = [];
+	(Array.isArray(dep) ? dep : [dep]).forEach(function(dep2) {
+		parent[6].push({
+			type: 2,
+			data: write_shallow([[], [{
+				type: 0,
+				data: write_varint49(dep2)
+			}]])
+		});
+	});
+	mlist[3][parentidx].data = write_shallow(parent);
+}
+function numbers_meta_del_dep(mlist, deps, id, dep) {
+	var loc = deps[id].location.replace(/^Root Entry\//, "").replace(/^Index\//, "").replace(/\.iwa$/, "");
+	var parentidx = mlist[3].findIndex(function(m) {
+		var _a, _b;
+		var mm = parse_shallow(m.data);
+		if ((_a = mm[3]) == null ? void 0 : _a[0]) return u8str(mm[3][0].data) == loc;
+		if (((_b = mm[2]) == null ? void 0 : _b[0]) && u8str(mm[2][0].data) == loc) return true;
+		return false;
+	});
+	var parent = parse_shallow(mlist[3][parentidx].data);
+	if (!parent[6]) parent[6] = [];
+	parent[6] = parent[6].filter(function(m) {
+		return varint_to_i32(parse_shallow(m.data)[1][0].data) != dep;
+	});
+	mlist[3][parentidx].data = write_shallow(parent);
+}
+function numbers_add_ws(cfb, deps, wsidx) {
+	var sheetref = -1, newsheetref = -1;
+	var remap = {};
+	numbers_iwa_doit(cfb, deps, 1, function(docroot, arch) {
+		var doc = parse_shallow(docroot.messages[0].data);
+		sheetref = parse_TSP_Reference(parse_shallow(docroot.messages[0].data)[1][0].data);
+		newsheetref = get_unique_msgid({
+			deps: [1],
+			location: deps[sheetref].location,
+			type: 2
+		}, deps);
+		remap[sheetref] = newsheetref;
+		numbers_add_oref(docroot, newsheetref);
+		doc[1].push({
+			type: 2,
+			data: write_TSP_Reference(newsheetref)
+		});
+		var sheet = numbers_iwa_find(cfb, deps, sheetref);
+		sheet.id = newsheetref;
+		if (deps[1].location == deps[newsheetref].location) arch.push(sheet);
+		else numbers_iwa_doit(cfb, deps, newsheetref, function(_, x) {
+			return x.push(sheet);
+		});
+		docroot.messages[0].data = write_shallow(doc);
+	});
+	var tiaref = -1;
+	numbers_iwa_doit(cfb, deps, newsheetref, function(sheetroot, arch) {
+		var sa = parse_shallow(sheetroot.messages[0].data);
+		for (var i = 3; i <= 69; ++i) delete sa[i];
+		var drawables = mappa(sa[2], parse_TSP_Reference);
+		drawables.forEach(function(n) {
+			return numbers_del_oref(sheetroot, n);
+		});
+		tiaref = get_unique_msgid({
+			deps: [newsheetref],
+			location: deps[drawables[0]].location,
+			type: deps[drawables[0]].type
+		}, deps);
+		numbers_add_oref(sheetroot, tiaref);
+		remap[drawables[0]] = tiaref;
+		sa[2] = [{
+			type: 2,
+			data: write_TSP_Reference(tiaref)
+		}];
+		var tia = numbers_iwa_find(cfb, deps, drawables[0]);
+		tia.id = tiaref;
+		if (deps[drawables[0]].location == deps[newsheetref].location) arch.push(tia);
+		else {
+			numbers_iwa_doit(cfb, deps, 2, function(ai) {
+				var mlist = parse_shallow(ai.messages[0].data);
+				numbers_meta_add_dep(mlist, deps, newsheetref, tiaref);
+				ai.messages[0].data = write_shallow(mlist);
+			});
+			numbers_iwa_doit(cfb, deps, tiaref, function(_, x) {
+				return x.push(tia);
+			});
+		}
+		sheetroot.messages[0].data = write_shallow(sa);
+	});
+	var tmaref = -1;
+	numbers_iwa_doit(cfb, deps, tiaref, function(tiaroot, arch) {
+		var tia = parse_shallow(tiaroot.messages[0].data);
+		var da = parse_shallow(tia[1][0].data);
+		for (var i = 3; i <= 69; ++i) delete da[i];
+		var dap = parse_TSP_Reference(da[2][0].data);
+		da[2][0].data = write_TSP_Reference(remap[dap]);
+		tia[1][0].data = write_shallow(da);
+		var oldtmaref = parse_TSP_Reference(tia[2][0].data);
+		numbers_del_oref(tiaroot, oldtmaref);
+		tmaref = get_unique_msgid({
+			deps: [tiaref],
+			location: deps[oldtmaref].location,
+			type: deps[oldtmaref].type
+		}, deps);
+		numbers_add_oref(tiaroot, tmaref);
+		remap[oldtmaref] = tmaref;
+		tia[2][0].data = write_TSP_Reference(tmaref);
+		var tma = numbers_iwa_find(cfb, deps, oldtmaref);
+		tma.id = tmaref;
+		if (deps[tiaref].location == deps[tmaref].location) arch.push(tma);
+		else numbers_iwa_doit(cfb, deps, tmaref, function(_, x) {
+			return x.push(tma);
+		});
+		tiaroot.messages[0].data = write_shallow(tia);
+	});
+	numbers_iwa_doit(cfb, deps, tmaref, function(tmaroot, arch) {
+		var _a, _b;
+		var tma = parse_shallow(tmaroot.messages[0].data);
+		var new_uuid = u8str(tma[1][0].data).replace(/-[A-Z0-9]*/, "-".concat(("0000" + wsidx.toString(16)).slice(-4)));
+		tma[1][0].data = stru8(new_uuid);
+		[
+			12,
+			13,
+			29,
+			31,
+			32,
+			33,
+			39,
+			44,
+			47,
+			81,
+			82,
+			84
+		].forEach(function(n) {
+			return delete tma[n];
+		});
+		if (tma[45]) {
+			numbers_del_oref(tmaroot, parse_TSP_Reference(parse_shallow(tma[45][0].data)[1][0].data));
+			delete tma[45];
+		}
+		if (tma[70]) {
+			(_a = parse_shallow(tma[70][0].data)[2]) == null || _a.forEach(function(item) {
+				var hsa = parse_shallow(item.data);
+				[2, 3].map(function(n) {
+					return hsa[n][0];
+				}).forEach(function(hseadata) {
+					var hsea = parse_shallow(hseadata.data);
+					if (!hsea[8]) return;
+					numbers_del_oref(tmaroot, parse_TSP_Reference(hsea[8][0].data));
+				});
+			});
+			delete tma[70];
+		}
+		[
+			46,
+			30,
+			34,
+			35,
+			36,
+			38,
+			48,
+			49,
+			60,
+			61,
+			62,
+			63,
+			64,
+			71,
+			72,
+			73,
+			74,
+			75,
+			85,
+			86,
+			87,
+			88,
+			89
+		].forEach(function(n) {
+			if (!tma[n]) return;
+			var ref2 = parse_TSP_Reference(tma[n][0].data);
+			delete tma[n];
+			numbers_del_oref(tmaroot, ref2);
+		});
+		var store = parse_shallow(tma[4][0].data);
+		[
+			2,
+			4,
+			5,
+			6,
+			11,
+			12,
+			13,
+			15,
+			16,
+			17,
+			18,
+			19,
+			20,
+			21,
+			22
+		].forEach(function(n) {
+			var _a2;
+			if (!((_a2 = store[n]) == null ? void 0 : _a2[0])) return;
+			var oldref = parse_TSP_Reference(store[n][0].data);
+			var newref = get_unique_msgid({
+				deps: [tmaref],
+				location: deps[oldref].location,
+				type: deps[oldref].type
+			}, deps);
+			numbers_del_oref(tmaroot, oldref);
+			numbers_add_oref(tmaroot, newref);
+			remap[oldref] = newref;
+			var msg = numbers_iwa_find(cfb, deps, oldref);
+			msg.id = newref;
+			if (deps[oldref].location == deps[tmaref].location) arch.push(msg);
+			else {
+				deps[newref].location = deps[oldref].location.replace(oldref.toString(), newref.toString());
+				if (deps[newref].location == deps[oldref].location) deps[newref].location = deps[newref].location.replace(/\.iwa/, "-".concat(newref, ".iwa"));
+				CFB.utils.cfb_add(cfb, deps[newref].location, compress_iwa_file(write_iwa_file([msg])));
+				var newloc = deps[newref].location.replace(/^Root Entry\//, "").replace(/^Index\//, "").replace(/\.iwa$/, "");
+				numbers_iwa_doit(cfb, deps, 2, function(ai) {
+					var mlist = parse_shallow(ai.messages[0].data);
+					numbers_add_meta(mlist, newref, newloc);
+					numbers_meta_add_dep(mlist, deps, tmaref, newref);
+					ai.messages[0].data = write_shallow(mlist);
+				});
+			}
+			store[n][0].data = write_TSP_Reference(newref);
+		});
+		var row_headers = parse_shallow(store[1][0].data);
+		(_b = row_headers[2]) == null || _b.forEach(function(tspref) {
+			var oldref = parse_TSP_Reference(tspref.data);
+			var newref = get_unique_msgid({
+				deps: [tmaref],
+				location: deps[oldref].location,
+				type: deps[oldref].type
+			}, deps);
+			numbers_del_oref(tmaroot, oldref);
+			numbers_add_oref(tmaroot, newref);
+			remap[oldref] = newref;
+			var msg = numbers_iwa_find(cfb, deps, oldref);
+			msg.id = newref;
+			if (deps[oldref].location == deps[tmaref].location) arch.push(msg);
+			else {
+				deps[newref].location = deps[oldref].location.replace(oldref.toString(), newref.toString());
+				if (deps[newref].location == deps[oldref].location) deps[newref].location = deps[newref].location.replace(/\.iwa/, "-".concat(newref, ".iwa"));
+				CFB.utils.cfb_add(cfb, deps[newref].location, compress_iwa_file(write_iwa_file([msg])));
+				var newloc = deps[newref].location.replace(/^Root Entry\//, "").replace(/^Index\//, "").replace(/\.iwa$/, "");
+				numbers_iwa_doit(cfb, deps, 2, function(ai) {
+					var mlist = parse_shallow(ai.messages[0].data);
+					numbers_add_meta(mlist, newref, newloc);
+					numbers_meta_add_dep(mlist, deps, tmaref, newref);
+					ai.messages[0].data = write_shallow(mlist);
+				});
+			}
+			tspref.data = write_TSP_Reference(newref);
+		});
+		store[1][0].data = write_shallow(row_headers);
+		var tiles = parse_shallow(store[3][0].data);
+		tiles[1].forEach(function(t) {
+			var tst = parse_shallow(t.data);
+			var oldtileref = parse_TSP_Reference(tst[2][0].data);
+			var newtileref = remap[oldtileref];
+			if (!remap[oldtileref]) {
+				newtileref = get_unique_msgid({
+					deps: [tmaref],
+					location: "",
+					type: deps[oldtileref].type
+				}, deps);
+				deps[newtileref].location = "Root Entry/Index/Tables/Tile-".concat(newtileref, ".iwa");
+				remap[oldtileref] = newtileref;
+				var oldtile = numbers_iwa_find(cfb, deps, oldtileref);
+				oldtile.id = newtileref;
+				numbers_del_oref(tmaroot, oldtileref);
+				numbers_add_oref(tmaroot, newtileref);
+				CFB.utils.cfb_add(cfb, "/Index/Tables/Tile-".concat(newtileref, ".iwa"), compress_iwa_file(write_iwa_file([oldtile])));
+				numbers_iwa_doit(cfb, deps, 2, function(ai) {
+					var mlist = parse_shallow(ai.messages[0].data);
+					mlist[3].push({
+						type: 2,
+						data: write_shallow([
+							[],
+							[{
+								type: 0,
+								data: write_varint49(newtileref)
+							}],
+							[{
+								type: 2,
+								data: stru8("Tables/Tile")
+							}],
+							[{
+								type: 2,
+								data: stru8("Tables/Tile-".concat(newtileref))
+							}],
+							[{
+								type: 2,
+								data: new Uint8Array([
+									2,
+									0,
+									0
+								])
+							}],
+							[{
+								type: 2,
+								data: new Uint8Array([
+									2,
+									0,
+									0
+								])
+							}],
+							[],
+							[],
+							[],
+							[],
+							[{
+								type: 0,
+								data: write_varint49(0)
+							}],
+							[],
+							[{
+								type: 0,
+								data: write_varint49(0)
+							}]
+						])
+					});
+					mlist[1] = [{
+						type: 0,
+						data: write_varint49(Math.max(newtileref + 1, varint_to_i32(mlist[1][0].data)))
+					}];
+					numbers_meta_add_dep(mlist, deps, tmaref, newtileref);
+					ai.messages[0].data = write_shallow(mlist);
+				});
+			}
+			tst[2][0].data = write_TSP_Reference(newtileref);
+			t.data = write_shallow(tst);
+		});
+		store[3][0].data = write_shallow(tiles);
+		tma[4][0].data = write_shallow(store);
+		tmaroot.messages[0].data = write_shallow(tma);
+	});
+}
+function write_numbers_ws(cfb, deps, ws, wsname, sheetidx, rootref) {
+	var drawables = [];
+	numbers_iwa_doit(cfb, deps, rootref, function(docroot) {
+		var sheetref = parse_shallow(docroot.messages[0].data);
+		sheetref[1] = [{
+			type: 2,
+			data: stru8(wsname)
+		}];
+		drawables = mappa(sheetref[2], parse_TSP_Reference);
+		docroot.messages[0].data = write_shallow(sheetref);
+	});
+	var tmaref = parse_TSP_Reference(parse_shallow(numbers_iwa_find(cfb, deps, drawables[0]).messages[0].data)[2][0].data);
+	numbers_iwa_doit(cfb, deps, tmaref, function(docroot, x) {
+		return write_numbers_tma(cfb, deps, ws, docroot, x, tmaref);
+	});
+}
+var USE_WIDE_ROWS = true;
+function write_numbers_tma(cfb, deps, ws, tmaroot, tmafile, tmaref) {
+	if (!ws["!ref"]) throw new Error("Cannot export empty sheet to NUMBERS");
+	var range = decode_range(ws["!ref"]);
+	range.s.r = range.s.c = 0;
+	var trunc = false;
+	if (range.e.c > 999) {
+		trunc = true;
+		range.e.c = 999;
+	}
+	if (range.e.r > 999999) {
+		trunc = true;
+		range.e.r = 999999;
+	}
+	if (trunc) console.error("Truncating to ".concat(encode_range(range)));
+	var data = [];
+	if (ws["!data"]) data = ws["!data"];
+	else {
+		var colstr = [];
+		for (var _C = 0; _C <= range.e.c; ++_C) colstr[_C] = encode_col(_C);
+		for (var R_ = 0; R_ <= range.e.r; ++R_) {
+			data[R_] = [];
+			var _R = "" + (R_ + 1);
+			for (_C = 0; _C <= range.e.c; ++_C) {
+				var _cell = ws[colstr[_C] + _R];
+				if (!_cell) continue;
+				data[R_][_C] = _cell;
+			}
+		}
+	}
+	var LUT = {
+		cmnt: [{
+			a: "~54ee77S~",
+			t: "... the people who are crazy enough to think they can change the world, are the ones who do."
+		}],
+		ferr: [],
+		fmla: [],
+		nfmt: [],
+		ofmt: [],
+		rsst: [{
+			v: "~54ee77S~",
+			l: "https://sheetjs.com/"
+		}],
+		sst: ["~Sh33tJ5~"]
+	};
+	var pb = parse_shallow(tmaroot.messages[0].data);
+	pb[6][0].data = write_varint49(range.e.r + 1);
+	pb[7][0].data = write_varint49(range.e.c + 1);
+	delete pb[46];
+	var store = parse_shallow(pb[4][0].data);
+	numbers_iwa_doit(cfb, deps, parse_TSP_Reference(parse_shallow(store[1][0].data)[2][0].data), function(rowhead, _x) {
+		var _a;
+		var base_bucket = parse_shallow(rowhead.messages[0].data);
+		if ((_a = base_bucket == null ? void 0 : base_bucket[2]) == null ? void 0 : _a[0]) for (var R2 = 0; R2 < data.length; ++R2) {
+			var _bucket = parse_shallow(base_bucket[2][0].data);
+			_bucket[1][0].data = write_varint49(R2);
+			_bucket[4][0].data = write_varint49(data[R2].length);
+			base_bucket[2][R2] = {
+				type: base_bucket[2][0].type,
+				data: write_shallow(_bucket)
+			};
+		}
+		rowhead.messages[0].data = write_shallow(base_bucket);
+	});
+	numbers_iwa_doit(cfb, deps, parse_TSP_Reference(store[2][0].data), function(colhead, _x) {
+		var base_bucket = parse_shallow(colhead.messages[0].data);
+		for (var C = 0; C <= range.e.c; ++C) {
+			var _bucket = parse_shallow(base_bucket[2][0].data);
+			_bucket[1][0].data = write_varint49(C);
+			_bucket[4][0].data = write_varint49(range.e.r + 1);
+			base_bucket[2][C] = {
+				type: base_bucket[2][0].type,
+				data: write_shallow(_bucket)
+			};
+		}
+		colhead.messages[0].data = write_shallow(base_bucket);
+	});
+	var rbtree = parse_shallow(store[9][0].data);
+	rbtree[1] = [];
+	var tilestore = parse_shallow(store[3][0].data);
+	var tstride = 256;
+	tilestore[2] = [{
+		type: 0,
+		data: write_varint49(tstride)
+	}];
+	var tileref = parse_TSP_Reference(parse_shallow(tilestore[1][0].data)[2][0].data);
+	var save_token = function() {
+		var mlst = parse_shallow(numbers_iwa_find(cfb, deps, 2).messages[0].data)[3].filter(function(m) {
+			return varint_to_i32(parse_shallow(m.data)[1][0].data) == tileref;
+		});
+		return (mlst == null ? void 0 : mlst.length) ? varint_to_i32(parse_shallow(mlst[0].data)[12][0].data) : 0;
+	}();
+	CFB.utils.cfb_del(cfb, deps[tileref].location);
+	numbers_iwa_doit(cfb, deps, 2, function(ai) {
+		var mlist = parse_shallow(ai.messages[0].data);
+		mlist[3] = mlist[3].filter(function(m) {
+			return varint_to_i32(parse_shallow(m.data)[1][0].data) != tileref;
+		});
+		numbers_meta_del_dep(mlist, deps, tmaref, tileref);
+		ai.messages[0].data = write_shallow(mlist);
+	});
+	numbers_del_oref(tmaroot, tileref);
+	tilestore[1] = [];
+	var ntiles = Math.ceil((range.e.r + 1) / tstride);
+	for (var tidx = 0; tidx < ntiles; ++tidx) {
+		var newtileid = get_unique_msgid({
+			deps: [],
+			location: "",
+			type: 6002
+		}, deps);
+		deps[newtileid].location = "Root Entry/Index/Tables/Tile-".concat(newtileid, ".iwa");
+		var tiledata = [
+			[],
+			[{
+				type: 0,
+				data: write_varint49(0)
+			}],
+			[{
+				type: 0,
+				data: write_varint49(Math.min(range.e.r + 1, (tidx + 1) * tstride))
+			}],
+			[{
+				type: 0,
+				data: write_varint49(0)
+			}],
+			[{
+				type: 0,
+				data: write_varint49(Math.min((tidx + 1) * tstride, range.e.r + 1) - tidx * tstride)
+			}],
+			[],
+			[{
+				type: 0,
+				data: write_varint49(5)
+			}],
+			[{
+				type: 0,
+				data: write_varint49(1)
+			}],
+			[{
+				type: 0,
+				data: write_varint49(USE_WIDE_ROWS ? 1 : 0)
+			}]
+		];
+		for (var R = tidx * tstride; R <= Math.min(range.e.r, (tidx + 1) * tstride - 1); ++R) {
+			var tilerow = write_TST_TileRowInfo(data[R], LUT, USE_WIDE_ROWS);
+			tilerow[1][0].data = write_varint49(R - tidx * tstride);
+			tiledata[5].push({
+				data: write_shallow(tilerow),
+				type: 2
+			});
+		}
+		tilestore[1].push({
+			type: 2,
+			data: write_shallow([
+				[],
+				[{
+					type: 0,
+					data: write_varint49(tidx)
+				}],
+				[{
+					type: 2,
+					data: write_TSP_Reference(newtileid)
+				}]
+			])
+		});
+		var tilecontent = compress_iwa_file(write_iwa_file([{
+			id: newtileid,
+			messages: [write_iwam(6002, write_shallow(tiledata))]
+		}]));
+		CFB.utils.cfb_add(cfb, "/Index/Tables/Tile-".concat(newtileid, ".iwa"), tilecontent);
+		numbers_iwa_doit(cfb, deps, 2, function(ai) {
+			var mlist = parse_shallow(ai.messages[0].data);
+			mlist[3].push({
+				type: 2,
+				data: write_shallow([
+					[],
+					[{
+						type: 0,
+						data: write_varint49(newtileid)
+					}],
+					[{
+						type: 2,
+						data: stru8("Tables/Tile")
+					}],
+					[{
+						type: 2,
+						data: stru8("Tables/Tile-".concat(newtileid))
+					}],
+					[{
+						type: 2,
+						data: new Uint8Array([
+							2,
+							0,
+							0
+						])
+					}],
+					[{
+						type: 2,
+						data: new Uint8Array([
+							2,
+							0,
+							0
+						])
+					}],
+					[],
+					[],
+					[],
+					[],
+					[{
+						type: 0,
+						data: write_varint49(0)
+					}],
+					[],
+					[{
+						type: 0,
+						data: write_varint49(save_token)
+					}]
+				])
+			});
+			mlist[1] = [{
+				type: 0,
+				data: write_varint49(Math.max(newtileid + 1, varint_to_i32(mlist[1][0].data)))
+			}];
+			numbers_meta_add_dep(mlist, deps, tmaref, newtileid);
+			ai.messages[0].data = write_shallow(mlist);
+		});
+		numbers_add_oref(tmaroot, newtileid);
+		rbtree[1].push({
+			type: 2,
+			data: write_shallow([
+				[],
+				[{
+					type: 0,
+					data: write_varint49(tidx * tstride)
+				}],
+				[{
+					type: 0,
+					data: write_varint49(tidx)
+				}]
+			])
+		});
+	}
+	store[3][0].data = write_shallow(tilestore);
+	store[9][0].data = write_shallow(rbtree);
+	store[10] = [{
+		type: 2,
+		data: new Uint8Array([])
+	}];
+	if (ws["!merges"]) {
+		var mergeid = get_unique_msgid({
+			type: 6144,
+			deps: [tmaref],
+			location: deps[tmaref].location
+		}, deps);
+		tmafile.push({
+			id: mergeid,
+			messages: [write_iwam(6144, write_shallow([[], ws["!merges"].map(function(m) {
+				return {
+					type: 2,
+					data: write_shallow([
+						[],
+						[{
+							type: 2,
+							data: write_shallow([[], [{
+								type: 5,
+								data: new Uint8Array(new Uint16Array([m.s.r, m.s.c]).buffer)
+							}]])
+						}],
+						[{
+							type: 2,
+							data: write_shallow([[], [{
+								type: 5,
+								data: new Uint8Array(new Uint16Array([m.e.r - m.s.r + 1, m.e.c - m.s.c + 1]).buffer)
+							}]])
+						}]
+					])
+				};
+			})]))]
+		});
+		store[13] = [{
+			type: 2,
+			data: write_TSP_Reference(mergeid)
+		}];
+		numbers_iwa_doit(cfb, deps, 2, function(ai) {
+			var mlist = parse_shallow(ai.messages[0].data);
+			numbers_meta_add_dep(mlist, deps, tmaref, mergeid);
+			ai.messages[0].data = write_shallow(mlist);
+		});
+		numbers_add_oref(tmaroot, mergeid);
+	} else delete store[13];
+	numbers_iwa_doit(cfb, deps, parse_TSP_Reference(store[4][0].data), function(sstroot) {
+		var sstdata = parse_shallow(sstroot.messages[0].data);
+		sstdata[3] = [];
+		LUT.sst.forEach(function(str, i) {
+			if (i == 0) return;
+			sstdata[3].push({
+				type: 2,
+				data: write_shallow([
+					[],
+					[{
+						type: 0,
+						data: write_varint49(i)
+					}],
+					[{
+						type: 0,
+						data: write_varint49(1)
+					}],
+					[{
+						type: 2,
+						data: stru8(str)
+					}]
+				])
+			});
+		});
+		sstroot.messages[0].data = write_shallow(sstdata);
+	});
+	var rsstref = parse_TSP_Reference(store[17][0].data);
+	numbers_iwa_doit(cfb, deps, rsstref, function(rsstroot) {
+		var rsstdata = parse_shallow(rsstroot.messages[0].data);
+		rsstdata[3] = [];
+		var style_indices = [
+			904980,
+			903835,
+			903815,
+			903845
+		];
+		LUT.rsst.forEach(function(rsst, i) {
+			if (i == 0) return;
+			var tswpsa = [
+				[],
+				[{
+					type: 0,
+					data: new Uint8Array([5])
+				}],
+				[],
+				[{
+					type: 2,
+					data: stru8(rsst.v)
+				}]
+			];
+			tswpsa[10] = [{
+				type: 0,
+				data: new Uint8Array([1])
+			}];
+			tswpsa[19] = [{
+				type: 2,
+				data: new Uint8Array([
+					10,
+					6,
+					8,
+					0,
+					18,
+					2,
+					101,
+					110
+				])
+			}];
+			tswpsa[5] = [{
+				type: 2,
+				data: new Uint8Array([
+					10,
+					8,
+					8,
+					0,
+					18,
+					4,
+					8,
+					155,
+					149,
+					55
+				])
+			}];
+			tswpsa[2] = [{
+				type: 2,
+				data: new Uint8Array([
+					8,
+					148,
+					158,
+					55
+				])
+			}];
+			tswpsa[6] = [{
+				type: 2,
+				data: new Uint8Array([
+					10,
+					6,
+					8,
+					0,
+					16,
+					0,
+					24,
+					0
+				])
+			}];
+			tswpsa[7] = [{
+				type: 2,
+				data: new Uint8Array([
+					10,
+					8,
+					8,
+					0,
+					18,
+					4,
+					8,
+					135,
+					149,
+					55
+				])
+			}];
+			tswpsa[8] = [{
+				type: 2,
+				data: new Uint8Array([
+					10,
+					8,
+					8,
+					0,
+					18,
+					4,
+					8,
+					165,
+					149,
+					55
+				])
+			}];
+			tswpsa[14] = [{
+				type: 2,
+				data: new Uint8Array([
+					10,
+					6,
+					8,
+					0,
+					16,
+					0,
+					24,
+					0
+				])
+			}];
+			tswpsa[24] = [{
+				type: 2,
+				data: new Uint8Array([
+					10,
+					6,
+					8,
+					0,
+					16,
+					0,
+					24,
+					0
+				])
+			}];
+			var tswpsaid = get_unique_msgid({
+				deps: [],
+				location: "",
+				type: 2001
+			}, deps);
+			var tswpsarefs = [];
+			if (rsst.l) {
+				var newhlinkid = numbers_add_msg(cfb, 2032, [
+					[],
+					[],
+					[{
+						type: 2,
+						data: stru8(rsst.l)
+					}]
+				], "/Index/Tables/DataList", deps);
+				tswpsa[11] = [];
+				var smartfield = [[], []];
+				if (!smartfield[1]) smartfield[1] = [];
+				smartfield[1].push({
+					type: 2,
+					data: write_shallow([
+						[],
+						[{
+							type: 0,
+							data: write_varint49(0)
+						}],
+						[{
+							type: 2,
+							data: write_TSP_Reference(newhlinkid)
+						}]
+					])
+				});
+				tswpsa[11][0] = {
+					type: 2,
+					data: write_shallow(smartfield)
+				};
+				tswpsarefs.push(newhlinkid);
+			}
+			numbers_add_msg(cfb, 2001, tswpsa, "/Index/Tables/DataList", deps, tswpsaid);
+			numbers_iwa_doit(cfb, deps, tswpsaid, function(iwa) {
+				style_indices.forEach(function(ref) {
+					return numbers_add_oref(iwa, ref);
+				});
+				tswpsarefs.forEach(function(ref) {
+					return numbers_add_oref(iwa, ref);
+				});
+			});
+			var rtpaid = numbers_add_msg(cfb, 6218, [
+				[],
+				[{
+					type: 2,
+					data: write_TSP_Reference(tswpsaid)
+				}],
+				[],
+				[{
+					type: 2,
+					data: new Uint8Array([
+						13,
+						255,
+						255,
+						255,
+						0,
+						18,
+						10,
+						16,
+						255,
+						255,
+						1,
+						24,
+						255,
+						255,
+						255,
+						255,
+						7
+					])
+				}]
+			], "/Index/Tables/DataList", deps);
+			numbers_iwa_doit(cfb, deps, rtpaid, function(iwa) {
+				return numbers_add_oref(iwa, tswpsaid);
+			});
+			rsstdata[3].push({
+				type: 2,
+				data: write_shallow([
+					[],
+					[{
+						type: 0,
+						data: write_varint49(i)
+					}],
+					[{
+						type: 0,
+						data: write_varint49(1)
+					}],
+					[],
+					[],
+					[],
+					[],
+					[],
+					[],
+					[{
+						type: 2,
+						data: write_TSP_Reference(rtpaid)
+					}]
+				])
+			});
+			numbers_add_oref(rsstroot, rtpaid);
+			numbers_iwa_doit(cfb, deps, 2, function(ai) {
+				var mlist = parse_shallow(ai.messages[0].data);
+				numbers_meta_add_dep(mlist, deps, rsstref, rtpaid);
+				numbers_meta_add_dep(mlist, deps, rtpaid, tswpsaid);
+				numbers_meta_add_dep(mlist, deps, tswpsaid, tswpsarefs);
+				numbers_meta_add_dep(mlist, deps, tswpsaid, style_indices);
+				ai.messages[0].data = write_shallow(mlist);
+			});
+		});
+		rsstroot.messages[0].data = write_shallow(rsstdata);
+	});
+	if (LUT.cmnt.length > 1) {
+		var cmntref = parse_TSP_Reference(store[19][0].data);
+		var authors = {}, iauthor = 0;
+		numbers_iwa_doit(cfb, deps, cmntref, function(cmntroot) {
+			var cmntdata = parse_shallow(cmntroot.messages[0].data);
+			cmntdata[3] = [];
+			LUT.cmnt.forEach(function(cc, i) {
+				if (i == 0) return;
+				var replies = [];
+				if (cc.replies) cc.replies.forEach(function(c) {
+					if (!authors[c.a || ""]) authors[c.a || ""] = numbers_add_msg(cfb, 212, [
+						[],
+						[{
+							type: 2,
+							data: stru8(c.a || "")
+						}],
+						[{
+							type: 2,
+							data: get_author_color(++iauthor)
+						}],
+						[],
+						[{
+							type: 0,
+							data: write_varint49(0)
+						}]
+					], "/Index/Tables/DataList", deps);
+					var aaaid2 = authors[c.a || ""];
+					var csaid2 = numbers_add_msg(cfb, 3056, [
+						[],
+						[{
+							type: 2,
+							data: stru8(c.t || "")
+						}],
+						[{
+							type: 2,
+							data: write_shallow([[], [{
+								type: 1,
+								data: new Uint8Array([
+									0,
+									0,
+									0,
+									128,
+									116,
+									109,
+									182,
+									65
+								])
+							}]])
+						}],
+						[{
+							type: 2,
+							data: write_TSP_Reference(aaaid2)
+						}]
+					], "/Index/Tables/DataList", deps);
+					numbers_iwa_doit(cfb, deps, csaid2, function(iwa) {
+						return numbers_add_oref(iwa, aaaid2);
+					});
+					replies.push(csaid2);
+					numbers_iwa_doit(cfb, deps, 2, function(ai) {
+						var mlist = parse_shallow(ai.messages[0].data);
+						numbers_meta_add_dep(mlist, deps, csaid2, aaaid2);
+						ai.messages[0].data = write_shallow(mlist);
+					});
+				});
+				if (!authors[cc.a || ""]) authors[cc.a || ""] = numbers_add_msg(cfb, 212, [
+					[],
+					[{
+						type: 2,
+						data: stru8(cc.a || "")
+					}],
+					[{
+						type: 2,
+						data: get_author_color(++iauthor)
+					}],
+					[],
+					[{
+						type: 0,
+						data: write_varint49(0)
+					}]
+				], "/Index/Tables/DataList", deps);
+				var aaaid = authors[cc.a || ""];
+				var csaid = numbers_add_msg(cfb, 3056, [
+					[],
+					[{
+						type: 2,
+						data: stru8(cc.t || "")
+					}],
+					[{
+						type: 2,
+						data: write_shallow([[], [{
+							type: 1,
+							data: new Uint8Array([
+								0,
+								0,
+								0,
+								128,
+								116,
+								109,
+								182,
+								65
+							])
+						}]])
+					}],
+					[{
+						type: 2,
+						data: write_TSP_Reference(aaaid)
+					}],
+					replies.map(function(r) {
+						return {
+							type: 2,
+							data: write_TSP_Reference(r)
+						};
+					}),
+					[{
+						type: 2,
+						data: write_shallow([
+							[],
+							[{
+								type: 0,
+								data: write_varint49(i)
+							}],
+							[{
+								type: 0,
+								data: write_varint49(0)
+							}]
+						])
+					}]
+				], "/Index/Tables/DataList", deps);
+				numbers_iwa_doit(cfb, deps, csaid, function(iwa) {
+					numbers_add_oref(iwa, aaaid);
+					replies.forEach(function(r) {
+						return numbers_add_oref(iwa, r);
+					});
+				});
+				cmntdata[3].push({
+					type: 2,
+					data: write_shallow([
+						[],
+						[{
+							type: 0,
+							data: write_varint49(i)
+						}],
+						[{
+							type: 0,
+							data: write_varint49(1)
+						}],
+						[],
+						[],
+						[],
+						[],
+						[],
+						[],
+						[],
+						[{
+							type: 2,
+							data: write_TSP_Reference(csaid)
+						}]
+					])
+				});
+				numbers_add_oref(cmntroot, csaid);
+				numbers_iwa_doit(cfb, deps, 2, function(ai) {
+					var mlist = parse_shallow(ai.messages[0].data);
+					numbers_meta_add_dep(mlist, deps, cmntref, csaid);
+					numbers_meta_add_dep(mlist, deps, csaid, aaaid);
+					if (replies.length) numbers_meta_add_dep(mlist, deps, csaid, replies);
+					ai.messages[0].data = write_shallow(mlist);
+				});
+			});
+			cmntdata[2][0].data = write_varint49(LUT.cmnt.length + 1);
+			cmntroot.messages[0].data = write_shallow(cmntdata);
+		});
+	}
+	pb[4][0].data = write_shallow(store);
+	tmaroot.messages[0].data = write_shallow(pb);
+}
 function fix_opts_func(defaults) {
 	return function fix_opts(opts) {
 		for (var i = 0; i != defaults.length; ++i) {
@@ -23668,6 +30041,15 @@ function fix_read_opts(opts) {
 		["bookFiles", false],
 		["bookVBA", false],
 		["password", ""],
+		["WTF", false]
+	])(opts);
+}
+function fix_write_opts(opts) {
+	fix_opts_func([
+		["cellDates", false],
+		["bookSST", false],
+		["bookType", "xlsx"],
+		["compression", false],
 		["WTF", false]
 	])(opts);
 }
@@ -23960,6 +30342,275 @@ function parse_xlsxcfb(cfb, _opts) {
 	if (einfo[0] == 2 && typeof decrypt_std76 !== "undefined") return decrypt_std76(einfo[1], data.content, opts.password || "", opts);
 	throw new Error("File is password-protected");
 }
+function write_zip_xlsb(wb, opts) {
+	if (wb && !wb.SSF) wb.SSF = dup(table_fmt);
+	if (wb && wb.SSF) {
+		make_ssf();
+		SSF_load_table(wb.SSF);
+		opts.revssf = evert_num(wb.SSF);
+		opts.revssf[wb.SSF[65535]] = 0;
+		opts.ssf = wb.SSF;
+	}
+	opts.rels = {};
+	opts.wbrels = {};
+	opts.Strings = [];
+	opts.Strings.Count = 0;
+	opts.Strings.Unique = 0;
+	if (browser_has_Map) opts.revStrings = /* @__PURE__ */ new Map();
+	else {
+		opts.revStrings = {};
+		opts.revStrings.foo = [];
+		delete opts.revStrings.foo;
+	}
+	var wbext = "bin";
+	var vbafmt = true;
+	var ct = new_ct();
+	fix_write_opts(opts = opts || {});
+	var zip = zip_new();
+	var f = "", rId = 0;
+	opts.cellXfs = [];
+	get_cell_style(opts.cellXfs, {}, { revssf: { "General": 0 } });
+	if (!wb.Props) wb.Props = {};
+	f = "docProps/core.xml";
+	zip_add_file(zip, f, write_core_props(wb.Props, opts));
+	ct.coreprops.push(f);
+	add_rels(opts.rels, 2, f, RELS.CORE_PROPS);
+	f = "docProps/app.xml";
+	if (wb.Props && wb.Props.SheetNames) {} else if (!wb.Workbook || !wb.Workbook.Sheets) wb.Props.SheetNames = wb.SheetNames;
+	else {
+		var _sn = [];
+		for (var _i = 0; _i < wb.SheetNames.length; ++_i) if ((wb.Workbook.Sheets[_i] || {}).Hidden != 2) _sn.push(wb.SheetNames[_i]);
+		wb.Props.SheetNames = _sn;
+	}
+	wb.Props.Worksheets = wb.Props.SheetNames.length;
+	zip_add_file(zip, f, write_ext_props(wb.Props, opts));
+	ct.extprops.push(f);
+	add_rels(opts.rels, 3, f, RELS.EXT_PROPS);
+	if (wb.Custprops !== wb.Props && keys(wb.Custprops || {}).length > 0) {
+		f = "docProps/custom.xml";
+		zip_add_file(zip, f, write_cust_props(wb.Custprops, opts));
+		ct.custprops.push(f);
+		add_rels(opts.rels, 4, f, RELS.CUST_PROPS);
+	}
+	var people = ["SheetJ5"];
+	opts.tcid = 0;
+	for (rId = 1; rId <= wb.SheetNames.length; ++rId) {
+		var wsrels = { "!id": {} };
+		var ws = wb.Sheets[wb.SheetNames[rId - 1]];
+		switch ((ws || {})["!type"] || "sheet") {
+			default:
+				f = "xl/worksheets/sheet" + rId + "." + wbext;
+				zip_add_file(zip, f, write_ws_bin(rId - 1, opts, wb, wsrels));
+				ct.sheets.push(f);
+				add_rels(opts.wbrels, -1, "worksheets/sheet" + rId + "." + wbext, RELS.WS[0]);
+		}
+		if (ws) {
+			var comments = ws["!comments"];
+			var need_vml = false;
+			var cf = "";
+			if (comments && comments.length > 0) {
+				var needtc = false;
+				comments.forEach(function(carr) {
+					carr[1].forEach(function(c) {
+						if (c.T == true) needtc = true;
+					});
+				});
+				if (needtc) {
+					cf = "xl/threadedComments/threadedComment" + rId + ".xml";
+					zip_add_file(zip, cf, write_tcmnt_xml(comments, people, opts));
+					ct.threadedcomments.push(cf);
+					add_rels(wsrels, -1, "../threadedComments/threadedComment" + rId + ".xml", RELS.TCMNT);
+				}
+				cf = "xl/comments" + rId + "." + wbext;
+				zip_add_file(zip, cf, write_comments_bin(comments, opts));
+				ct.comments.push(cf);
+				add_rels(wsrels, -1, "../comments" + rId + "." + wbext, RELS.CMNT);
+				need_vml = true;
+			}
+			if (ws["!legacy"]) {
+				if (need_vml) zip_add_file(zip, "xl/drawings/vmlDrawing" + rId + ".vml", write_vml(rId, ws["!comments"]));
+			}
+			delete ws["!comments"];
+			delete ws["!legacy"];
+		}
+		if (wsrels["!id"].rId1) zip_add_file(zip, get_rels_path(f), write_rels(wsrels));
+	}
+	if (opts.Strings != null && opts.Strings.length > 0) {
+		f = "xl/sharedStrings." + wbext;
+		zip_add_file(zip, f, write_sst_bin(opts.Strings, opts));
+		ct.strs.push(f);
+		add_rels(opts.wbrels, -1, "sharedStrings." + wbext, RELS.SST);
+	}
+	f = "xl/workbook." + wbext;
+	zip_add_file(zip, f, write_wb_bin(wb, opts));
+	ct.workbooks.push(f);
+	add_rels(opts.rels, 1, f, RELS.WB);
+	f = "xl/theme/theme1.xml";
+	var ww = write_theme(wb.Themes, opts);
+	zip_add_file(zip, f, ww);
+	ct.themes.push(f);
+	add_rels(opts.wbrels, -1, "theme/theme1.xml", RELS.THEME);
+	f = "xl/styles." + wbext;
+	zip_add_file(zip, f, write_sty_bin(wb, opts));
+	ct.styles.push(f);
+	add_rels(opts.wbrels, -1, "styles." + wbext, RELS.STY);
+	if (wb.vbaraw && vbafmt) {
+		f = "xl/vbaProject.bin";
+		zip_add_file(zip, f, wb.vbaraw);
+		ct.vba.push(f);
+		add_rels(opts.wbrels, -1, "vbaProject.bin", RELS.VBA);
+	}
+	f = "xl/metadata." + wbext;
+	zip_add_file(zip, f, write_xlmeta_bin());
+	ct.metadata.push(f);
+	add_rels(opts.wbrels, -1, "metadata." + wbext, RELS.XLMETA);
+	if (people.length > 1) {
+		f = "xl/persons/person.xml";
+		zip_add_file(zip, f, write_people_xml(people, opts));
+		ct.people.push(f);
+		add_rels(opts.wbrels, -1, "persons/person.xml", RELS.PEOPLE);
+	}
+	zip_add_file(zip, "[Content_Types].xml", write_ct(ct, opts));
+	zip_add_file(zip, "_rels/.rels", write_rels(opts.rels));
+	zip_add_file(zip, "xl/_rels/workbook." + wbext + ".rels", write_rels(opts.wbrels));
+	delete opts.revssf;
+	delete opts.ssf;
+	return zip;
+}
+function write_zip_xlsx(wb, opts) {
+	if (wb && !wb.SSF) wb.SSF = dup(table_fmt);
+	if (wb && wb.SSF) {
+		make_ssf();
+		SSF_load_table(wb.SSF);
+		opts.revssf = evert_num(wb.SSF);
+		opts.revssf[wb.SSF[65535]] = 0;
+		opts.ssf = wb.SSF;
+	}
+	opts.rels = {};
+	opts.wbrels = {};
+	opts.Strings = [];
+	opts.Strings.Count = 0;
+	opts.Strings.Unique = 0;
+	if (browser_has_Map) opts.revStrings = /* @__PURE__ */ new Map();
+	else {
+		opts.revStrings = {};
+		opts.revStrings.foo = [];
+		delete opts.revStrings.foo;
+	}
+	var wbext = "xml";
+	var vbafmt = VBAFMTS.indexOf(opts.bookType) > -1;
+	var ct = new_ct();
+	fix_write_opts(opts = opts || {});
+	var zip = zip_new();
+	var f = "", rId = 0;
+	opts.cellXfs = [];
+	get_cell_style(opts.cellXfs, {}, { revssf: { "General": 0 } });
+	if (!wb.Props) wb.Props = {};
+	f = "docProps/core.xml";
+	zip_add_file(zip, f, write_core_props(wb.Props, opts));
+	ct.coreprops.push(f);
+	add_rels(opts.rels, 2, f, RELS.CORE_PROPS);
+	f = "docProps/app.xml";
+	if (wb.Props && wb.Props.SheetNames) {} else if (!wb.Workbook || !wb.Workbook.Sheets) wb.Props.SheetNames = wb.SheetNames;
+	else {
+		var _sn = [];
+		for (var _i = 0; _i < wb.SheetNames.length; ++_i) if ((wb.Workbook.Sheets[_i] || {}).Hidden != 2) _sn.push(wb.SheetNames[_i]);
+		wb.Props.SheetNames = _sn;
+	}
+	wb.Props.Worksheets = wb.Props.SheetNames.length;
+	zip_add_file(zip, f, write_ext_props(wb.Props, opts));
+	ct.extprops.push(f);
+	add_rels(opts.rels, 3, f, RELS.EXT_PROPS);
+	if (wb.Custprops !== wb.Props && keys(wb.Custprops || {}).length > 0) {
+		f = "docProps/custom.xml";
+		zip_add_file(zip, f, write_cust_props(wb.Custprops, opts));
+		ct.custprops.push(f);
+		add_rels(opts.rels, 4, f, RELS.CUST_PROPS);
+	}
+	var people = ["SheetJ5"];
+	opts.tcid = 0;
+	for (rId = 1; rId <= wb.SheetNames.length; ++rId) {
+		var wsrels = { "!id": {} };
+		var ws = wb.Sheets[wb.SheetNames[rId - 1]];
+		switch ((ws || {})["!type"] || "sheet") {
+			default:
+				f = "xl/worksheets/sheet" + rId + "." + wbext;
+				zip_add_file(zip, f, write_ws_xml(rId - 1, opts, wb, wsrels));
+				ct.sheets.push(f);
+				add_rels(opts.wbrels, -1, "worksheets/sheet" + rId + "." + wbext, RELS.WS[0]);
+		}
+		if (ws) {
+			var comments = ws["!comments"];
+			var need_vml = false;
+			var cf = "";
+			if (comments && comments.length > 0) {
+				var needtc = false;
+				comments.forEach(function(carr) {
+					carr[1].forEach(function(c) {
+						if (c.T == true) needtc = true;
+					});
+				});
+				if (needtc) {
+					cf = "xl/threadedComments/threadedComment" + rId + ".xml";
+					zip_add_file(zip, cf, write_tcmnt_xml(comments, people, opts));
+					ct.threadedcomments.push(cf);
+					add_rels(wsrels, -1, "../threadedComments/threadedComment" + rId + ".xml", RELS.TCMNT);
+				}
+				cf = "xl/comments" + rId + "." + wbext;
+				zip_add_file(zip, cf, write_comments_xml(comments, opts));
+				ct.comments.push(cf);
+				add_rels(wsrels, -1, "../comments" + rId + "." + wbext, RELS.CMNT);
+				need_vml = true;
+			}
+			if (ws["!legacy"]) {
+				if (need_vml) zip_add_file(zip, "xl/drawings/vmlDrawing" + rId + ".vml", write_vml(rId, ws["!comments"]));
+			}
+			delete ws["!comments"];
+			delete ws["!legacy"];
+		}
+		if (wsrels["!id"].rId1) zip_add_file(zip, get_rels_path(f), write_rels(wsrels));
+	}
+	if (opts.Strings != null && opts.Strings.length > 0) {
+		f = "xl/sharedStrings." + wbext;
+		zip_add_file(zip, f, write_sst_xml(opts.Strings, opts));
+		ct.strs.push(f);
+		add_rels(opts.wbrels, -1, "sharedStrings." + wbext, RELS.SST);
+	}
+	f = "xl/workbook." + wbext;
+	zip_add_file(zip, f, write_wb_xml(wb, opts));
+	ct.workbooks.push(f);
+	add_rels(opts.rels, 1, f, RELS.WB);
+	f = "xl/theme/theme1.xml";
+	zip_add_file(zip, f, write_theme(wb.Themes, opts));
+	ct.themes.push(f);
+	add_rels(opts.wbrels, -1, "theme/theme1.xml", RELS.THEME);
+	f = "xl/styles." + wbext;
+	zip_add_file(zip, f, write_sty_xml(wb, opts));
+	ct.styles.push(f);
+	add_rels(opts.wbrels, -1, "styles." + wbext, RELS.STY);
+	if (wb.vbaraw && vbafmt) {
+		f = "xl/vbaProject.bin";
+		zip_add_file(zip, f, wb.vbaraw);
+		ct.vba.push(f);
+		add_rels(opts.wbrels, -1, "vbaProject.bin", RELS.VBA);
+	}
+	f = "xl/metadata." + wbext;
+	zip_add_file(zip, f, write_xlmeta_xml());
+	ct.metadata.push(f);
+	add_rels(opts.wbrels, -1, "metadata." + wbext, RELS.XLMETA);
+	if (people.length > 1) {
+		f = "xl/persons/person.xml";
+		zip_add_file(zip, f, write_people_xml(people, opts));
+		ct.people.push(f);
+		add_rels(opts.wbrels, -1, "persons/person.xml", RELS.PEOPLE);
+	}
+	zip_add_file(zip, "[Content_Types].xml", write_ct(ct, opts));
+	zip_add_file(zip, "_rels/.rels", write_rels(opts.rels));
+	zip_add_file(zip, "xl/_rels/workbook." + wbext + ".rels", write_rels(opts.wbrels));
+	delete opts.revssf;
+	delete opts.ssf;
+	return zip;
+}
 function firstbyte(f, o) {
 	var x = "";
 	switch ((o || {}).type || "base64") {
@@ -24154,6 +30805,172 @@ function readSync(data, opts) {
 	}
 	if (DBF_SUPPORTED_VERSIONS.indexOf(n[0]) > -1 && n[2] <= 12 && n[3] <= 31) return DBF.to_workbook(d, o);
 	return read_prn(data, d, o, str);
+}
+function write_cfb_ctr(cfb, o) {
+	switch (o.type) {
+		case "base64":
+		case "binary": break;
+		case "buffer":
+		case "array":
+			o.type = "";
+			break;
+		case "file": return write_dl(o.file, CFB.write(cfb, { type: has_buf ? "buffer" : "" }));
+		case "string": throw new Error("'string' output type invalid for '" + o.bookType + "' files");
+		default: throw new Error("Unrecognized type " + o.type);
+	}
+	return CFB.write(cfb, o);
+}
+function write_zip(wb, opts) {
+	switch (opts.bookType) {
+		case "ods": return write_ods(wb, opts);
+		case "numbers": return write_numbers_iwa(wb, opts);
+		case "xlsb": return write_zip_xlsb(wb, opts);
+		default: return write_zip_xlsx(wb, opts);
+	}
+}
+function write_zip_type(wb, opts) {
+	var o = dup(opts || {});
+	return write_zip_denouement(write_zip(wb, o), o);
+}
+function write_zip_denouement(z, o) {
+	var oopts = {};
+	var ftype = has_buf ? "nodebuffer" : typeof Uint8Array !== "undefined" ? "array" : "string";
+	if (o.compression) oopts.compression = "DEFLATE";
+	if (o.password) oopts.type = ftype;
+	else switch (o.type) {
+		case "base64":
+			oopts.type = "base64";
+			break;
+		case "binary":
+			oopts.type = "string";
+			break;
+		case "string": throw new Error("'string' output type invalid for '" + o.bookType + "' files");
+		case "buffer":
+		case "file":
+			oopts.type = ftype;
+			break;
+		default: throw new Error("Unrecognized type " + o.type);
+	}
+	var out = z.FullPaths ? CFB.write(z, {
+		fileType: "zip",
+		type: {
+			"nodebuffer": "buffer",
+			"string": "binary"
+		}[oopts.type] || oopts.type,
+		compression: !!o.compression
+	}) : z.generate(oopts);
+	if (typeof Deno !== "undefined") {
+		if (typeof out == "string") {
+			if (o.type == "binary" || o.type == "base64") return out;
+			out = new Uint8Array(s2ab(out));
+		}
+	}
+	if (o.password && typeof encrypt_agile !== "undefined") return write_cfb_ctr(encrypt_agile(out, o.password), o);
+	if (o.type === "file") return write_dl(o.file, out);
+	return o.type == "string" ? utf8read(out) : out;
+}
+function write_cfb_type(wb, opts) {
+	var o = opts || {};
+	return write_cfb_ctr(write_xlscfb(wb, o), o);
+}
+function write_string_type(out, opts, bom) {
+	if (!bom) bom = "";
+	var o = bom + out;
+	switch (opts.type) {
+		case "base64": return Base64_encode(utf8write(o));
+		case "binary": return utf8write(o);
+		case "string": return out;
+		case "file": return write_dl(opts.file, o, "utf8");
+		case "buffer": if (has_buf) return Buffer_from(o, "utf8");
+		else if (typeof TextEncoder !== "undefined") return new TextEncoder().encode(o);
+		else return write_string_type(o, { type: "binary" }).split("").map(function(c) {
+			return c.charCodeAt(0);
+		});
+	}
+	throw new Error("Unrecognized type " + opts.type);
+}
+function write_stxt_type(out, opts) {
+	switch (opts.type) {
+		case "base64": return Base64_encode_pass(out);
+		case "binary": return out;
+		case "string": return out;
+		case "file": return write_dl(opts.file, out, "binary");
+		case "buffer": if (has_buf) return Buffer_from(out, "binary");
+		else return out.split("").map(function(c) {
+			return c.charCodeAt(0);
+		});
+	}
+	throw new Error("Unrecognized type " + opts.type);
+}
+function write_binary_type(out, opts) {
+	switch (opts.type) {
+		case "string":
+		case "base64":
+		case "binary":
+			var bstr = "";
+			for (var i = 0; i < out.length; ++i) bstr += String.fromCharCode(out[i]);
+			return opts.type == "base64" ? Base64_encode(bstr) : opts.type == "string" ? utf8read(bstr) : bstr;
+		case "file": return write_dl(opts.file, out);
+		case "buffer": return out;
+		default: throw new Error("Unrecognized type " + opts.type);
+	}
+}
+function writeSync(wb, opts) {
+	reset_cp();
+	check_wb(wb);
+	var o = dup(opts || {});
+	if (o.cellStyles) {
+		o.cellNF = true;
+		o.sheetStubs = true;
+	}
+	if (o.type == "array") {
+		o.type = "binary";
+		var out = writeSync(wb, o);
+		o.type = "array";
+		return s2ab(out);
+	}
+	var idx = 0;
+	if (o.sheet) {
+		if (typeof o.sheet == "number") idx = o.sheet;
+		else idx = wb.SheetNames.indexOf(o.sheet);
+		if (!wb.SheetNames[idx]) throw new Error("Sheet not found: " + o.sheet + " : " + typeof o.sheet);
+	}
+	switch (o.bookType || "xlsb") {
+		case "xml":
+		case "xlml": return write_string_type(write_xlml(wb, o), o);
+		case "slk":
+		case "sylk": return write_string_type(SYLK.from_sheet(wb.Sheets[wb.SheetNames[idx]], o, wb), o);
+		case "htm":
+		case "html": return write_string_type(sheet_to_html(wb.Sheets[wb.SheetNames[idx]], o), o);
+		case "txt": return write_stxt_type(sheet_to_txt(wb.Sheets[wb.SheetNames[idx]], o), o);
+		case "csv": return write_string_type(sheet_to_csv(wb.Sheets[wb.SheetNames[idx]], o), o, "﻿");
+		case "dif": return write_string_type(DIF.from_sheet(wb.Sheets[wb.SheetNames[idx]], o), o);
+		case "dbf": return write_binary_type(DBF.from_sheet(wb.Sheets[wb.SheetNames[idx]], o), o);
+		case "prn": return write_string_type(PRN.from_sheet(wb.Sheets[wb.SheetNames[idx]], o), o);
+		case "rtf": return write_string_type(sheet_to_rtf(wb.Sheets[wb.SheetNames[idx]], o), o);
+		case "eth": return write_string_type(ETH.from_sheet(wb.Sheets[wb.SheetNames[idx]], o), o);
+		case "fods": return write_string_type(write_ods(wb, o), o);
+		case "wk1": return write_binary_type(WK_.sheet_to_wk1(wb.Sheets[wb.SheetNames[idx]], o), o);
+		case "wk3": return write_binary_type(WK_.book_to_wk3(wb, o), o);
+		case "biff2": if (!o.biff) o.biff = 2;
+		case "biff3": if (!o.biff) o.biff = 3;
+		case "biff4":
+			if (!o.biff) o.biff = 4;
+			return write_binary_type(write_biff_buf(wb, o), o);
+		case "biff5": if (!o.biff) o.biff = 5;
+		case "biff8":
+		case "xla":
+		case "xls":
+			if (!o.biff) o.biff = 8;
+			return write_cfb_type(wb, o);
+		case "xlsx":
+		case "xlsm":
+		case "xlam":
+		case "xlsb":
+		case "numbers":
+		case "ods": return write_zip_type(wb, o);
+		default: throw new Error("Unrecognized bookType |" + o.bookType + "|");
+	}
 }
 function make_json_row(sheet, r, R, cols, header, hdr, o) {
 	var rr = encode_row(R);
@@ -25034,14 +31851,14 @@ var IMPORT_KINDS = /* @__PURE__ */ new Set([
 	"enterprises",
 	"projects"
 ]);
-var WRITE_ROLES$2 = [
+var WRITE_ROLES$3 = [
 	"admin",
 	"manager",
 	"specialist"
 ];
 var MAX_FILE_BYTES$1 = 10485760;
 var BATCH_SIZE = 400;
-function safeFilename$1(filename) {
+function safeFilename$2(filename) {
 	return String(filename || "import").normalize("NFKC").replace(/[\\/\u0000-\u001f\u007f]+/g, "-").replace(/\s+/g, " ").trim().slice(0, 160) || "import";
 }
 function importShape(row) {
@@ -25109,7 +31926,7 @@ async function deleteNormalizedRows(db, importId) {
 		"park_projects"
 	]) await db.prepare(`DELETE FROM ${table} WHERE import_id = ?`).bind(importId).run();
 }
-async function audit$1(db, deps, parkId, userId, importId, result, summary) {
+async function audit$2(db, deps, parkId, userId, importId, result, summary) {
 	await db.prepare(`INSERT INTO audit_logs
     (id, park_id, user_id, action, object_type, object_id, result, summary, created_at)
     VALUES (?, ?, ?, 'import.commit', 'import', ?, ?, ?, ?)`).bind(deps.id(), parkId, userId, importId, result, summary.slice(0, 300), deps.now()).run();
@@ -25122,13 +31939,13 @@ function createImportService({ db, files, env, deps }) {
 		},
 		async commit(identity, parkId, request) {
 			const user = await requireOrgUser(db, identity, env, deps);
-			await requireParkRole(db, parkId, user, WRITE_ROLES$2);
+			await requireParkRole(db, parkId, user, WRITE_ROLES$3);
 			const importId = deps.id();
 			let form;
 			try {
 				form = await readImportForm(request);
 			} catch (error) {
-				await audit$1(db, deps, parkId, user.id, importId, "failed", "导入请求校验失败");
+				await audit$2(db, deps, parkId, user.id, importId, "failed", "导入请求校验失败");
 				throw error;
 			}
 			const { kind, file, metadata } = form;
@@ -25137,22 +31954,22 @@ function createImportService({ db, files, env, deps }) {
 			try {
 				preview = parseWorkbookBytes(bytes, kind);
 			} catch {
-				await audit$1(db, deps, parkId, user.id, importId, "failed", "导入文件解析失败");
+				await audit$2(db, deps, parkId, user.id, importId, "failed", "导入文件解析失败");
 				throw new WorkspaceError("IMPORT_PARSE_FAILED", "文件无法按所选模板读取。", 422);
 			}
 			if (!preview.normalizedRows.length || preview.rowErrors.length) {
-				await audit$1(db, deps, parkId, user.id, importId, "failed", `导入数据校验失败:${preview.rowErrors.length}`);
+				await audit$2(db, deps, parkId, user.id, importId, "failed", `导入数据校验失败:${preview.rowErrors.length}`);
 				throw new WorkspaceError("IMPORT_VALIDATION_FAILED", "文件中存在未通过校验的数据。", 422, { rows: preview.rowErrors.slice(0, 100) });
 			}
 			const digest = await sha256Hex$1(bytes);
 			const duplicate = await db.prepare(`SELECT * FROM imports
         WHERE park_id = ? AND import_type = ? AND file_digest = ? AND status = 'succeeded'`).bind(parkId, kind, digest).first();
 			if (duplicate && metadata.replaceImportId !== duplicate.id) {
-				await audit$1(db, deps, parkId, user.id, importId, "failed", "重复导入未确认替换");
+				await audit$2(db, deps, parkId, user.id, importId, "failed", "重复导入未确认替换");
 				throw new WorkspaceError("DUPLICATE_IMPORT", "相同文件已经导入，请明确选择替换或取消。", 409);
 			}
 			const timestamp = deps.now();
-			const r2Key = `parks/${parkId}/imports/${importId}/${safeFilename$1(file.name)}`;
+			const r2Key = `parks/${parkId}/imports/${importId}/${safeFilename$2(file.name)}`;
 			let pendingCreated = false;
 			let r2Created = false;
 			try {
@@ -25184,13 +32001,13 @@ function createImportService({ db, files, env, deps }) {
 					await deleteNormalizedRows(db, duplicate.id);
 					await files.delete(duplicate.r2_key);
 				}
-				await audit$1(db, deps, parkId, user.id, importId, "succeeded", `${kind}:${preview.normalizedRows.length}`);
+				await audit$2(db, deps, parkId, user.id, importId, "succeeded", `${kind}:${preview.normalizedRows.length}`);
 				return importShape(await db.prepare("SELECT * FROM imports WHERE id = ? AND park_id = ?").bind(importId, parkId).first());
 			} catch (error) {
 				await deleteNormalizedRows(db, importId);
 				if (pendingCreated) await db.prepare("DELETE FROM imports WHERE id = ? AND park_id = ?").bind(importId, parkId).run();
 				if (r2Created) await files.delete(r2Key);
-				await audit$1(db, deps, parkId, user.id, importId, "failed", "导入写入失败");
+				await audit$2(db, deps, parkId, user.id, importId, "failed", "导入写入失败");
 				if (error instanceof WorkspaceError) throw error;
 				throw new WorkspaceError("IMPORT_COMMIT_FAILED", "导入未完成，已撤销本次写入。", 500);
 			}
@@ -25257,7 +32074,7 @@ var INDICATOR_DEFINITIONS = [
 ];
 //#endregion
 //#region server/workspace/diagnosis.mjs
-var WRITE_ROLES$1 = [
+var WRITE_ROLES$2 = [
 	"admin",
 	"manager",
 	"specialist"
@@ -25395,7 +32212,7 @@ function createDiagnosisService({ db, env, deps }) {
 	return {
 		async generate(identity, parkId) {
 			const user = await requireOrgUser(db, identity, env, deps);
-			await requireParkRole(db, parkId, user, WRITE_ROLES$1);
+			await requireParkRole(db, parkId, user, WRITE_ROLES$2);
 			const runId = deps.id();
 			const calculatedAt = deps.now();
 			const statements = calculateIndicators(await dataForPark(db, parkId)).map((item) => db.prepare(`INSERT INTO indicator_results
@@ -25427,7 +32244,7 @@ var TASK_STATUSES = [
 	"blocked",
 	"done"
 ];
-var WRITE_ROLES = [
+var WRITE_ROLES$1 = [
 	"admin",
 	"manager",
 	"specialist"
@@ -25490,7 +32307,7 @@ function fileShape(row) {
 		uploadedAt: row.uploaded_at
 	};
 }
-function safeFilename(filename) {
+function safeFilename$1(filename) {
 	return String(filename || "file").normalize("NFKC").replace(/[\\/\u0000-\u001f\u007f]+/g, "-").replace(/\s+/g, " ").trim().slice(0, 160) || "file";
 }
 function extension(filename) {
@@ -25500,7 +32317,7 @@ async function sha256Hex(bytes) {
 	const digest = await crypto.subtle.digest("SHA-256", bytes);
 	return [...new Uint8Array(digest)].map((value) => value.toString(16).padStart(2, "0")).join("");
 }
-async function audit(db, deps, { parkId, userId, action, objectType, objectId, result = "succeeded", summary = "" }) {
+async function audit$1(db, deps, { parkId, userId, action, objectType, objectId, result = "succeeded", summary = "" }) {
 	await db.prepare(`INSERT INTO audit_logs
     (id, park_id, user_id, action, object_type, object_id, result, summary, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(deps.id(), parkId, userId, action, objectType, objectId, result, summary.slice(0, 300), deps.now()).run();
@@ -25518,7 +32335,7 @@ function createTaskFileService({ db, files, env, deps }) {
 		},
 		async createTask(identity, parkId, body) {
 			const user = await requireOrgUser(db, identity, env, deps);
-			await requireParkRole(db, parkId, user, WRITE_ROLES);
+			await requireParkRole(db, parkId, user, WRITE_ROLES$1);
 			const status = cleanStatus(body.status ?? "draft");
 			const reviewNote = typeof body.reviewNote === "string" ? body.reviewNote.trim().slice(0, 2e3) : "";
 			if (status === "done") validateTaskCompletion({
@@ -25536,7 +32353,7 @@ function createTaskFileService({ db, files, env, deps }) {
 			await db.prepare(`INSERT INTO tasks
         (id, park_id, source_indicator_id, task_type, title, owner_name, planned_date, status, review_note, created_by, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(id, parkId, sourceIndicatorId, cleanText(body.taskType, "taskType", { max: 80 }), cleanText(body.title, "title", { max: 200 }), cleanText(body.ownerName, "ownerName", { max: 100 }), cleanDate(body.plannedDate), status, reviewNote, user.id, timestamp, timestamp).run();
-			await audit(db, deps, {
+			await audit$1(db, deps, {
 				parkId,
 				userId: user.id,
 				action: "task.create",
@@ -25548,7 +32365,7 @@ function createTaskFileService({ db, files, env, deps }) {
 		},
 		async updateTask(identity, parkId, taskId, body) {
 			const user = await requireOrgUser(db, identity, env, deps);
-			await requireParkRole(db, parkId, user, WRITE_ROLES);
+			await requireParkRole(db, parkId, user, WRITE_ROLES$1);
 			const current = await findTask(db, parkId, taskId);
 			if (!current) throw new WorkspaceError("TASK_NOT_FOUND", "未找到该任务。", 404);
 			const status = body.status === void 0 ? current.status : cleanStatus(body.status);
@@ -25564,7 +32381,7 @@ function createTaskFileService({ db, files, env, deps }) {
 			const plannedDate = body.plannedDate === void 0 ? current.planned_date : cleanDate(body.plannedDate);
 			await db.prepare(`UPDATE tasks SET task_type = ?, title = ?, owner_name = ?, planned_date = ?, status = ?, review_note = ?, updated_at = ?
         WHERE id = ? AND park_id = ?`).bind(taskType, title, ownerName, plannedDate, status, reviewNote, deps.now(), taskId, parkId).run();
-			await audit(db, deps, {
+			await audit$1(db, deps, {
 				parkId,
 				userId: user.id,
 				action: "task.update",
@@ -25580,7 +32397,7 @@ function createTaskFileService({ db, files, env, deps }) {
 		},
 		async uploadFile(identity, parkId, request) {
 			const user = await requireOrgUser(db, identity, env, deps);
-			await requireParkRole(db, parkId, user, WRITE_ROLES);
+			await requireParkRole(db, parkId, user, WRITE_ROLES$1);
 			if (!request.headers.get("content-type")?.includes("multipart/form-data")) throw new WorkspaceError("INVALID_CONTENT_TYPE", "文件上传必须使用 multipart/form-data。", 415);
 			const form = await request.formData();
 			const ownerType = String(form.get("ownerType") ?? "");
@@ -25594,7 +32411,7 @@ function createTaskFileService({ db, files, env, deps }) {
 			if (!ALLOWED_FILES.has(ext) || !ALLOWED_FILES.get(ext).includes(file.type || "application/octet-stream")) throw new WorkspaceError("INVALID_FILE_TYPE", "仅支持 XLSX、CSV、PDF、PNG 和 JPEG 文件。", 422);
 			const id = deps.id();
 			const timestamp = deps.now();
-			const r2Key = `parks/${parkId}/evidence/${id}/${safeFilename(file.name)}`;
+			const r2Key = `parks/${parkId}/evidence/${id}/${safeFilename$1(file.name)}`;
 			const bytes = await file.arrayBuffer();
 			const checksum = await sha256Hex(bytes);
 			let uploaded = false;
@@ -25612,7 +32429,7 @@ function createTaskFileService({ db, files, env, deps }) {
           VALUES (?, ?, 'task', ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(id, parkId, ownerId, r2Key, file.name.slice(0, 240), file.type, file.size, checksum, "文件类型与大小校验通过", user.id, timestamp).run();
 			} catch {
 				if (uploaded) await files.delete(r2Key);
-				await audit(db, deps, {
+				await audit$1(db, deps, {
 					parkId,
 					userId: user.id,
 					action: "file.upload",
@@ -25623,7 +32440,7 @@ function createTaskFileService({ db, files, env, deps }) {
 				});
 				throw new WorkspaceError("FILE_COMMIT_FAILED", "文件上传未完成，已撤销本次写入。", 500);
 			}
-			await audit(db, deps, {
+			await audit$1(db, deps, {
 				parkId,
 				userId: user.id,
 				action: "file.upload",
@@ -25645,6 +32462,294 @@ function createTaskFileService({ db, files, env, deps }) {
 				"content-disposition": `attachment; filename="download${extension(metadata.original_filename)}"; filename*=UTF-8''${encodeURIComponent(metadata.original_filename)}`,
 				"cache-control": "private, no-store"
 			} });
+		}
+	};
+}
+//#endregion
+//#region src/services/deliverableModel.ts
+function buildExportSnapshot(input) {
+	return {
+		park: { ...input.park },
+		dataBaselineDate: input.dataBaselineDate,
+		indicatorVersion: input.diagnosis?.version ?? null,
+		missingData: input.diagnosis?.missingData ?? ["diagnosis"],
+		generatedAt: input.generatedAt,
+		diagnosisResults: input.diagnosis?.results ?? [],
+		tasks: input.tasks,
+		projects: input.projects,
+		files: input.files
+	};
+}
+//#endregion
+//#region server/workspace/exports.mjs
+var EXPORT_TYPES = /* @__PURE__ */ new Set([
+	"diagnosis_report",
+	"task_register",
+	"project_investment",
+	"evidence_catalog"
+]);
+var WRITE_ROLES = [
+	"admin",
+	"manager",
+	"specialist"
+];
+var XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+function exportShape(row) {
+	return {
+		id: row.id,
+		parkId: row.park_id,
+		type: row.export_type,
+		dataBaselineDate: row.data_baseline_date,
+		indicatorVersion: row.indicator_version,
+		snapshot: JSON.parse(row.snapshot_json),
+		summary: row.snapshot_summary,
+		downloadAvailable: Boolean(row.r2_key),
+		generatedAt: row.generated_at
+	};
+}
+function safeFilename(filename) {
+	return filename.replace(/[\\/\u0000-\u001f\u007f]+/g, "-").slice(0, 160);
+}
+function parkShape(row) {
+	return {
+		id: row.id,
+		name: row.name,
+		region: row.region,
+		parkType: row.park_type,
+		baselineYear: row.baseline_year,
+		targetYear: row.target_year,
+		applicationDirection: row.application_direction
+	};
+}
+function parseArray(value) {
+	try {
+		return JSON.parse(value || "[]");
+	} catch {
+		return [];
+	}
+}
+async function latestDiagnosis(db, parkId) {
+	const latest = await db.prepare("SELECT diagnosis_run_id FROM indicator_results WHERE park_id = ? ORDER BY rowid DESC LIMIT 1").bind(parkId).first();
+	if (!latest) return null;
+	const rows = await db.prepare("SELECT * FROM indicator_results WHERE park_id = ? AND diagnosis_run_id = ? ORDER BY rowid").bind(parkId, latest.diagnosis_run_id).all();
+	const results = rows.results.map((row) => ({
+		id: row.id,
+		key: row.indicator_key,
+		currentValue: row.current_value,
+		targetValue: row.target_value,
+		unit: row.unit,
+		status: row.status,
+		calculationNote: row.calculation_note,
+		inputImportIds: parseArray(row.input_import_ids),
+		missingData: parseArray(row.missing_data)
+	}));
+	return {
+		version: rows.results[0].indicator_version,
+		missingData: [...new Set(results.flatMap((item) => item.missingData))],
+		results
+	};
+}
+async function snapshotForPark(db, parkId, generatedAt) {
+	const park = await db.prepare("SELECT * FROM parks WHERE id = ?").bind(parkId).first();
+	if (!park) throw new WorkspaceError("PARK_NOT_FOUND", "未找到该园区。", 404);
+	const [baseline, diagnosis, tasks, projects, files] = await Promise.all([
+		db.prepare(`SELECT COALESCE(MAX(period_end), ?) AS value FROM imports WHERE park_id = ? AND status = 'succeeded'`).bind(park.data_baseline_date, parkId).first("value"),
+		latestDiagnosis(db, parkId),
+		db.prepare(`SELECT t.*, (SELECT COUNT(*) FROM files f WHERE f.park_id = t.park_id AND f.owner_type = 'task' AND f.owner_id = t.id) AS evidence_count
+      FROM tasks t WHERE t.park_id = ? ORDER BY t.planned_date, t.created_at`).bind(parkId).all(),
+		db.prepare("SELECT * FROM park_projects WHERE park_id = ? ORDER BY planned_start_date, name").bind(parkId).all(),
+		db.prepare("SELECT * FROM files WHERE park_id = ? ORDER BY uploaded_at, original_filename").bind(parkId).all()
+	]);
+	return buildExportSnapshot({
+		park: parkShape(park),
+		dataBaselineDate: baseline,
+		diagnosis,
+		tasks: tasks.results.map((row) => ({
+			id: row.id,
+			title: row.title,
+			taskType: row.task_type,
+			ownerName: row.owner_name,
+			plannedDate: row.planned_date,
+			status: row.status,
+			reviewNote: row.review_note,
+			evidenceCount: Number(row.evidence_count)
+		})),
+		projects: projects.results.map((row) => ({
+			id: row.id,
+			name: row.name,
+			projectType: row.project_type,
+			status: row.status,
+			investmentTenThousandYuan: row.investment_ten_thousand_yuan,
+			capacityValue: row.capacity_value,
+			capacityUnit: row.capacity_unit,
+			plannedStartDate: row.planned_start_date,
+			plannedOperationDate: row.planned_operation_date,
+			expectedReductionTco2e: row.expected_reduction_tco2e
+		})),
+		files: files.results.map((row) => ({
+			id: row.id,
+			ownerType: row.owner_type,
+			ownerId: row.owner_id,
+			filename: row.original_filename,
+			contentType: row.content_type,
+			size: row.file_size,
+			checksum: row.checksum,
+			uploadedAt: row.uploaded_at
+		})),
+		generatedAt
+	});
+}
+function metadataRows(snapshot) {
+	return [
+		["园区名称", snapshot.park.name],
+		["所在地区", snapshot.park.region],
+		["数据基准日", snapshot.dataBaselineDate ?? "未形成"],
+		["指标版本", snapshot.indicatorVersion ?? "未形成"],
+		["生成时间", snapshot.generatedAt],
+		["数据缺口", snapshot.missingData.join("、") || "无"]
+	];
+}
+function buildWorkbook(type, snapshot) {
+	const workbook = utils.book_new();
+	const metadata = utils.aoa_to_sheet([["成果元数据", "内容"], ...metadataRows(snapshot)]);
+	utils.book_append_sheet(workbook, metadata, "成果说明");
+	if (type === "task_register") utils.book_append_sheet(workbook, utils.aoa_to_sheet([[
+		"任务标题",
+		"任务类型",
+		"责任人",
+		"计划日期",
+		"状态",
+		"审核备注",
+		"佐证数量"
+	], ...snapshot.tasks.map((item) => [
+		item.title,
+		item.taskType,
+		item.ownerName,
+		item.plannedDate,
+		item.status,
+		item.reviewNote,
+		item.evidenceCount
+	])]), "任务表");
+	else if (type === "project_investment") utils.book_append_sheet(workbook, utils.aoa_to_sheet([[
+		"项目名称",
+		"类型",
+		"状态",
+		"投资万元",
+		"容量",
+		"容量单位",
+		"计划开工",
+		"计划投产",
+		"预期减排tCO₂e"
+	], ...snapshot.projects.map((item) => [
+		item.name,
+		item.projectType,
+		item.status,
+		item.investmentTenThousandYuan,
+		item.capacityValue,
+		item.capacityUnit,
+		item.plannedStartDate,
+		item.plannedOperationDate,
+		item.expectedReductionTco2e
+	])]), "项目投资清单");
+	else utils.book_append_sheet(workbook, utils.aoa_to_sheet([[
+		"文件名称",
+		"归属类型",
+		"归属对象",
+		"文件类型",
+		"文件大小Byte",
+		"校验摘要",
+		"上传时间"
+	], ...snapshot.files.map((item) => [
+		item.filename,
+		item.ownerType,
+		item.ownerId,
+		item.contentType,
+		item.size,
+		item.checksum,
+		item.uploadedAt
+	])]), "佐证材料目录");
+	return writeSync(workbook, {
+		type: "array",
+		bookType: "xlsx",
+		compression: true
+	});
+}
+function filenameFor(type, snapshot) {
+	const suffix = {
+		task_register: "建设与申报任务表",
+		project_investment: "项目投资清单",
+		evidence_catalog: "申报佐证材料目录"
+	}[type];
+	return safeFilename(`${snapshot.park.name}-${suffix}-${snapshot.generatedAt.slice(0, 10)}.xlsx`);
+}
+async function audit(db, deps, parkId, userId, exportId, result, summary) {
+	await db.prepare(`INSERT INTO audit_logs
+    (id, park_id, user_id, action, object_type, object_id, result, summary, created_at)
+    VALUES (?, ?, ?, 'export.generate', 'export', ?, ?, ?, ?)`).bind(deps.id(), parkId, userId, exportId, result, summary.slice(0, 300), deps.now()).run();
+}
+function createExportService({ db, files, env, deps }) {
+	return {
+		async generate(identity, parkId, body) {
+			const user = await requireOrgUser(db, identity, env, deps);
+			await requireParkRole(db, parkId, user, WRITE_ROLES);
+			if (!EXPORT_TYPES.has(body.type)) throw new WorkspaceError("INVALID_EXPORT_TYPE", "请选择有效成果类型。", 422);
+			const snapshot = await snapshotForPark(db, parkId, deps.now());
+			const preview = {
+				type: body.type,
+				snapshot,
+				recordCount: body.type === "task_register" ? snapshot.tasks.length : body.type === "project_investment" ? snapshot.projects.length : body.type === "evidence_catalog" ? snapshot.files.length : snapshot.diagnosisResults.length
+			};
+			if (body.confirmed !== true) return {
+				preview,
+				exported: null
+			};
+			const id = deps.id();
+			let r2Key = null;
+			try {
+				if (body.type !== "diagnosis_report") {
+					r2Key = `parks/${parkId}/exports/${id}/${filenameFor(body.type, snapshot)}`;
+					await files.put(r2Key, buildWorkbook(body.type, snapshot), {
+						httpMetadata: { contentType: XLSX_TYPE },
+						customMetadata: {
+							parkId,
+							exportId: id
+						}
+					});
+				}
+				await db.prepare(`INSERT INTO exports
+          (id, park_id, export_type, data_baseline_date, indicator_version, snapshot_json, snapshot_summary, r2_key, generated_by, generated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(id, parkId, body.type, snapshot.dataBaselineDate, snapshot.indicatorVersion, JSON.stringify(snapshot), `${snapshot.park.name}:${preview.recordCount}`, r2Key, user.id, snapshot.generatedAt).run();
+			} catch {
+				if (r2Key) await files.delete(r2Key);
+				await audit(db, deps, parkId, user.id, id, "failed", body.type);
+				throw new WorkspaceError("EXPORT_COMMIT_FAILED", "成果生成未完成，已撤销本次写入。", 500);
+			}
+			await audit(db, deps, parkId, user.id, id, "succeeded", body.type);
+			return {
+				preview,
+				exported: exportShape(await db.prepare("SELECT * FROM exports WHERE id = ? AND park_id = ?").bind(id, parkId).first())
+			};
+		},
+		async get(identity, parkId, exportId, download) {
+			await requireParkRole(db, parkId, await requireOrgUser(db, identity, env, deps));
+			const row = await db.prepare("SELECT * FROM exports WHERE id = ? AND park_id = ?").bind(exportId, parkId).first();
+			if (!row) throw new WorkspaceError("EXPORT_NOT_FOUND", "未找到该成果。", 404);
+			if (!download || !row.r2_key) return {
+				response: null,
+				exported: exportShape(row)
+			};
+			const object = await files.get(row.r2_key);
+			if (!object) throw new WorkspaceError("EXPORT_CONTENT_NOT_FOUND", "成果文件暂时不可用。", 404);
+			const filename = filenameFor(row.export_type, JSON.parse(row.snapshot_json));
+			return {
+				exported: null,
+				response: new Response(object.body, { headers: {
+					"content-type": XLSX_TYPE,
+					"content-length": String(object.size),
+					"content-disposition": `attachment; filename="export.xlsx"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+					"cache-control": "private, no-store"
+				} })
+			};
 		}
 	};
 }
@@ -25683,6 +32788,12 @@ function createWorkspaceRouter(deps = {}) {
 				deps: runtimeDeps
 			});
 			const taskFiles = createTaskFileService({
+				db: env.DB,
+				files: env.FILES,
+				env,
+				deps: runtimeDeps
+			});
+			const exports = createExportService({
 				db: env.DB,
 				files: env.FILES,
 				env,
@@ -25727,6 +32838,22 @@ function createWorkspaceRouter(deps = {}) {
 				const fileId = fileMatch[2] ? decodeURIComponent(fileMatch[2]) : null;
 				if (request.method === "POST" && !fileId) return workspaceJson({ file: await taskFiles.uploadFile(identity, parkId, request) }, 201);
 				if (request.method === "GET" && fileId) return taskFiles.downloadFile(identity, parkId, fileId);
+			}
+			const exportMatch = url.pathname.match(/^\/api\/workspace\/parks\/([^/]+)\/exports(?:\/([^/]+))?$/);
+			if (exportMatch) {
+				const parkId = decodeURIComponent(exportMatch[1]);
+				const exportId = exportMatch[2] ? decodeURIComponent(exportMatch[2]) : null;
+				if (request.method === "POST" && !exportId) {
+					const generated = await exports.generate(identity, parkId, await readWorkspaceJson(request));
+					return generated.exported ? workspaceJson({
+						preview: generated.preview,
+						export: generated.exported
+					}, 201) : workspaceJson({ preview: generated.preview });
+				}
+				if (request.method === "GET" && exportId) {
+					const found = await exports.get(identity, parkId, exportId, url.searchParams.get("download") === "1");
+					return found.response ?? workspaceJson({ export: found.exported });
+				}
 			}
 			const parkMatch = url.pathname.match(/^\/api\/workspace\/parks\/([^/]+)$/);
 			if (parkMatch) {
