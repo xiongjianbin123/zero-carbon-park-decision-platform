@@ -38,8 +38,20 @@ test('completes the real park workflow and persists it after reload', async ({ p
   await expect(page.getByText('能源专员')).toBeVisible()
   await page.locator('input[aria-label="上传任务佐证"]').setInputFiles('public/templates/monthly-energy.xlsx')
   await expect(page.getByText(/已为.+上传佐证/)).toBeVisible()
+  await page.locator('.task-main').first().click()
+  await expect(page.getByRole('dialog', { name: '任务详情' })).toContainText('monthly-energy.xlsx')
+  await page.getByLabel('审核备注').fill('佐证文件已复核，可进入申报材料目录。')
+  await page.getByTestId('save-review-note').click()
+  await expect(page.getByText('审核备注已保存。')).toBeVisible()
+  await page.screenshot({ path: 'artifacts/screenshots/workspace-task-drawer-1440x900.png', fullPage: true })
+  await page.getByRole('button', { name: '关闭任务详情' }).click()
   await page.locator('select[aria-label="更新任务状态"]').selectOption('done')
   await expect(page.getByText('任务状态已更新。')).toBeVisible()
+
+  await page.getByRole('link', { name: '申报准备度' }).click()
+  await expect(page.getByRole('heading', { name: '申报准备度' })).toBeVisible()
+  await expect(page.getByTestId('readiness-row').first()).toBeVisible()
+  await page.screenshot({ path: 'artifacts/screenshots/workspace-readiness-1440x900.png', fullPage: true })
 
   await page.getByRole('link', { name: '成果交付' }).click()
   const taskDeliverable = page.locator('[data-testid="deliverable-card"]').filter({ hasText: '建设与申报任务表' })
@@ -57,6 +69,15 @@ test('completes the real park workflow and persists it after reload', async ({ p
   await downloadButton.click()
   const download = await downloadPromise
   expect(download.suggestedFilename()).toContain('.xlsx')
+  await expect(page.locator('.history-panel')).toContainText('建设与申报任务表')
+  await expect(page.getByTestId('history-download')).toHaveCount(1)
+
+  await page.getByRole('link', { name: '项目成员' }).click()
+  await expect(page.getByRole('heading', { name: '项目成员' })).toBeVisible()
+  await page.locator('input[type="email"]').fill(`reviewer-${Date.now()}@example.test`)
+  await page.getByTestId('invite-member').getByRole('button', { name: '发送邀请' }).click()
+  await expect(page.getByText('成员邀请已创建。')).toBeVisible()
+  await page.screenshot({ path: 'artifacts/screenshots/workspace-members-1440x900.png', fullPage: true })
 
   await page.reload()
   await page.locator('.park-picker select').selectOption({ label: parkName })
@@ -67,7 +88,7 @@ test('completes the real park workflow and persists it after reload', async ({ p
 
 test('keeps project pages readable at mobile width', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('/#/workspace')
+  await page.goto('/#/workspace/readiness')
   await expect(page.locator('.workspace-nav')).toBeVisible()
   const layout = await page.evaluate(() => {
     const header = document.querySelector('.app-header')?.getBoundingClientRect()

@@ -15,6 +15,9 @@ export default defineConfig(async () => {
     resolve: {
       alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
     },
+    server: {
+      watch: { ignored: ['**/.wrangler/**', '**/artifacts/screenshots/**', '**/test-results/**', '**/dist/**'] },
+    },
     base: './',
   }
 })

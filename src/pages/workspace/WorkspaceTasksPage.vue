@@ -1,15 +1,19 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch, onMounted } from 'vue'
 import TaskBoard from '@/components/workspace/TaskBoard.vue'
+import TaskDetailDrawer from '@/components/workspace/TaskDetailDrawer.vue'
 import { workspaceApi } from '@/services/workspaceApi'
 import { useWorkspaceState } from '@/stores/workspace'
-import type { TaskStatus, WorkspaceTask } from '@/types/workspace'
+import type { TaskActivity, TaskEvidenceFile, WorkspaceTask, TaskStatus } from '@/types/workspace'
 
 const state = useWorkspaceState()
 const tasks = ref<WorkspaceTask[]>([])
 const busyId = ref('')
 const message = ref('')
 const showCreate = ref(false)
+const selectedTask = ref<WorkspaceTask | null>(null)
+const detailFiles = ref<TaskEvidenceFile[]>([])
+const detailActivity = ref<TaskActivity[]>([])
 const canWrite = computed(() => state.selectedPark.value?.role !== 'viewer')
 const form = reactive({ taskType: '项目推进', title: '', ownerName: '', plannedDate: '', status: 'open' as const, reviewNote: '' })
 
@@ -32,6 +36,25 @@ async function uploadEvidence(task: WorkspaceTask, file: File) {
   try { await workspaceApi.uploadEvidence(state.selectedParkId.value, task.id, file); task.evidenceCount += 1; message.value = `已为“${task.title}”上传佐证。` }
   catch (error) { message.value = (error as Error).message } finally { busyId.value = '' }
 }
+async function openTask(task: WorkspaceTask) {
+  if (!state.selectedParkId.value) return
+  selectedTask.value = task; busyId.value = task.id; message.value = ''
+  try { [detailFiles.value, detailActivity.value] = await Promise.all([workspaceApi.listTaskFiles(state.selectedParkId.value, task.id), workspaceApi.listTaskActivity(state.selectedParkId.value, task.id)]) }
+  catch (error) { message.value = (error as Error).message }
+  finally { busyId.value = '' }
+}
+async function saveReviewNote(note: string) {
+  if (!state.selectedParkId.value || !selectedTask.value) return
+  busyId.value = selectedTask.value.id; message.value = ''
+  try { Object.assign(selectedTask.value, await workspaceApi.updateTask(state.selectedParkId.value, selectedTask.value.id, { reviewNote: note })); message.value = '审核备注已保存。' }
+  catch (error) { message.value = (error as Error).message }
+  finally { busyId.value = '' }
+}
+async function downloadEvidence(file: TaskEvidenceFile) {
+  if (!state.selectedParkId.value) return
+  try { const result = await workspaceApi.downloadEvidence(state.selectedParkId.value, file.id); const url = URL.createObjectURL(result.blob); const link = document.createElement('a'); link.href = url; link.download = result.filename; link.click(); setTimeout(() => URL.revokeObjectURL(url), 0) }
+  catch (error) { message.value = (error as Error).message }
+}
 watch(() => state.selectedParkId.value, load)
 onMounted(load)
 </script>
@@ -41,7 +64,8 @@ onMounted(load)
     <form v-if="showCreate" class="create-form" @submit.prevent="create"><label><span>任务标题</span><input v-model="form.title" required></label><label><span>任务类型</span><input v-model="form.taskType" required></label><label><span>责任人</span><input v-model="form.ownerName" required></label><label><span>计划日期</span><input v-model="form.plannedDate" type="date" required></label><button type="submit" :disabled="busyId === 'create'">保存任务</button></form>
     <p v-if="message" class="message" aria-live="polite">{{ message }}</p>
     <section class="task-summary"><span>全部任务 <b>{{ tasks.length }}</b></span><span>待办理 <b>{{ tasks.filter(item => !['done','cancelled'].includes(item.status)).length }}</b></span><span>已有佐证 <b>{{ tasks.reduce((sum,item) => sum + item.evidenceCount, 0) }}</b></span></section>
-    <TaskBoard :tasks="tasks" :busy-id="busyId" :writable="canWrite" @change-status="changeStatus" @upload-evidence="uploadEvidence" />
+    <TaskBoard :tasks="tasks" :busy-id="busyId" :writable="canWrite" @change-status="changeStatus" @upload-evidence="uploadEvidence" @open-task="openTask" />
+    <TaskDetailDrawer v-if="selectedTask" :task="selectedTask" :files="detailFiles" :activity="detailActivity" :busy="busyId === selectedTask.id" :writable="canWrite" @close="selectedTask = null" @save-review-note="saveReviewNote" @download="downloadEvidence" />
   </div>
 </template>
 

@@ -41,6 +41,15 @@ export interface ParkProject {
   role: 'admin' | 'manager' | 'specialist' | 'viewer'
 }
 
+export type ParkRole = 'admin' | 'manager' | 'specialist' | 'viewer'
+
+export interface WorkspaceMember {
+  id: string
+  email: string
+  role: ParkRole
+  status: 'active' | 'invited' | 'suspended'
+}
+
 export interface ImportBatch {
   id: string
   kind: ImportKind
@@ -93,6 +102,26 @@ export interface WorkspaceTask {
   evidenceCount: number
   createdAt?: string
   updatedAt?: string
+}
+
+export interface TaskEvidenceFile {
+  id: string
+  ownerType: 'task'
+  ownerId: string
+  filename: string
+  contentType: string
+  size: number
+  checksum: string
+  validationSummary: string
+  uploadedAt: string
+}
+
+export interface TaskActivity {
+  id: string
+  action: string
+  result: 'succeeded' | 'failed'
+  summary: string
+  createdAt: string
 }
 
 export type ExportType = 'diagnosis_report' | 'task_register' | 'project_investment' | 'evidence_catalog'

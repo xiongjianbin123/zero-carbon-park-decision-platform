@@ -70,6 +70,16 @@ function fileShape(row) {
   }
 }
 
+function activityShape(row) {
+  return {
+    id: row.id,
+    action: row.action,
+    result: row.result,
+    summary: row.summary,
+    createdAt: row.created_at,
+  }
+}
+
 function safeFilename(filename) {
   const cleaned = String(filename || 'file')
     .normalize('NFKC')
@@ -112,6 +122,17 @@ export function createTaskFileService({ db, files, env, deps }) {
         FROM tasks t WHERE t.park_id = ? ORDER BY t.planned_date, t.created_at`)
         .bind(parkId).all()
       return result.results.map(taskShape)
+    },
+
+    async listTaskActivity(identity, parkId, taskId) {
+      const user = await requireOrgUser(db, identity, env, deps)
+      await requireParkRole(db, parkId, user)
+      if (!await findTask(db, parkId, taskId)) throw new WorkspaceError('TASK_NOT_FOUND', '未找到该任务。', 404)
+      const result = await db.prepare(`SELECT * FROM audit_logs
+        WHERE park_id = ? AND ((object_type = 'task' AND object_id = ?) OR (object_type = 'file' AND summary = ?))
+        ORDER BY created_at DESC, rowid DESC`)
+        .bind(parkId, taskId, `task:${taskId}`).all()
+      return result.results.map(activityShape)
     },
 
     async createTask(identity, parkId, body) {
@@ -202,6 +223,17 @@ export function createTaskFileService({ db, files, env, deps }) {
       }
       await audit(db, deps, { parkId, userId: user.id, action: 'file.upload', objectType: 'file', objectId: id, summary: `${ownerType}:${ownerId}` })
       return fileShape(await db.prepare('SELECT * FROM files WHERE id = ? AND park_id = ?').bind(id, parkId).first())
+    },
+
+    async listFiles(identity, parkId, { ownerType, ownerId }) {
+      const user = await requireOrgUser(db, identity, env, deps)
+      await requireParkRole(db, parkId, user)
+      if (ownerType !== 'task' || !ownerId) throw new WorkspaceError('INVALID_FILE_FILTER', '请选择有效的佐证归属。', 422)
+      if (!await findTask(db, parkId, ownerId)) throw new WorkspaceError('TASK_NOT_FOUND', '未找到该任务。', 404)
+      const result = await db.prepare(`SELECT * FROM files
+        WHERE park_id = ? AND owner_type = ? AND owner_id = ? ORDER BY uploaded_at DESC, rowid DESC`)
+        .bind(parkId, ownerType, ownerId).all()
+      return result.results.map(fileShape)
     },
 
     async downloadFile(identity, parkId, fileId) {

@@ -1419,7 +1419,14 @@ function createParkService({ db, env, deps }) {
 			const actor = await requireOrgUser(db, identity, env, deps);
 			await requireParkRole(db, parkId, actor, ["admin"]);
 			if (!PARK_ROLES.includes(body.role)) throw new WorkspaceError("VALIDATION_FAILED", "提交内容不符合要求。", 422, { role: "请选择有效项目角色。" });
-			if (!(await db.prepare("UPDATE park_members SET role = ?, updated_at = ? WHERE id = ? AND park_id = ?").bind(body.role, deps.now(), memberId, parkId).run()).meta.changes) throw new WorkspaceError("MEMBER_NOT_FOUND", "未找到该成员。", 404);
+			if (!(await db.prepare(`UPDATE park_members SET role = ?, updated_at = ?
+        WHERE id = ? AND park_id = ?
+          AND NOT (role = 'admin' AND ? <> 'admin' AND
+            (SELECT COUNT(*) FROM park_members WHERE park_id = ? AND role = 'admin' AND member_status = 'active') <= 1)`).bind(body.role, deps.now(), memberId, parkId, body.role, parkId).run()).meta.changes) {
+				const member = await db.prepare("SELECT role FROM park_members WHERE id = ? AND park_id = ?").bind(memberId, parkId).first();
+				if (!member) throw new WorkspaceError("MEMBER_NOT_FOUND", "未找到该成员。", 404);
+				if (member.role === "admin" && body.role !== "admin") throw new WorkspaceError("LAST_ADMIN_REQUIRED", "项目至少需要保留一名管理员。", 422);
+			}
 			await audit$3(db, deps, {
 				parkId,
 				userId: actor.id,
@@ -32315,6 +32322,15 @@ function fileShape(row) {
 		uploadedAt: row.uploaded_at
 	};
 }
+function activityShape(row) {
+	return {
+		id: row.id,
+		action: row.action,
+		result: row.result,
+		summary: row.summary,
+		createdAt: row.created_at
+	};
+}
 function safeFilename$1(filename) {
 	return String(filename || "file").normalize("NFKC").replace(/[\\/\u0000-\u001f\u007f]+/g, "-").replace(/\s+/g, " ").trim().slice(0, 160) || "file";
 }
@@ -32340,6 +32356,13 @@ function createTaskFileService({ db, files, env, deps }) {
 			await requireParkRole(db, parkId, await requireOrgUser(db, identity, env, deps));
 			return (await db.prepare(`SELECT t.*, (SELECT COUNT(*) FROM files f WHERE f.park_id = t.park_id AND f.owner_type = 'task' AND f.owner_id = t.id) AS evidence_count
         FROM tasks t WHERE t.park_id = ? ORDER BY t.planned_date, t.created_at`).bind(parkId).all()).results.map(taskShape);
+		},
+		async listTaskActivity(identity, parkId, taskId) {
+			await requireParkRole(db, parkId, await requireOrgUser(db, identity, env, deps));
+			if (!await findTask(db, parkId, taskId)) throw new WorkspaceError("TASK_NOT_FOUND", "未找到该任务。", 404);
+			return (await db.prepare(`SELECT * FROM audit_logs
+        WHERE park_id = ? AND ((object_type = 'task' AND object_id = ?) OR (object_type = 'file' AND summary = ?))
+        ORDER BY created_at DESC, rowid DESC`).bind(parkId, taskId, `task:${taskId}`).all()).results.map(activityShape);
 		},
 		async createTask(identity, parkId, body) {
 			const user = await requireOrgUser(db, identity, env, deps);
@@ -32457,6 +32480,13 @@ function createTaskFileService({ db, files, env, deps }) {
 				summary: `${ownerType}:${ownerId}`
 			});
 			return fileShape(await db.prepare("SELECT * FROM files WHERE id = ? AND park_id = ?").bind(id, parkId).first());
+		},
+		async listFiles(identity, parkId, { ownerType, ownerId }) {
+			await requireParkRole(db, parkId, await requireOrgUser(db, identity, env, deps));
+			if (ownerType !== "task" || !ownerId) throw new WorkspaceError("INVALID_FILE_FILTER", "请选择有效的佐证归属。", 422);
+			if (!await findTask(db, parkId, ownerId)) throw new WorkspaceError("TASK_NOT_FOUND", "未找到该任务。", 404);
+			return (await db.prepare(`SELECT * FROM files
+        WHERE park_id = ? AND owner_type = ? AND owner_id = ? ORDER BY uploaded_at DESC, rowid DESC`).bind(parkId, ownerType, ownerId).all()).results.map(fileShape);
 		},
 		async downloadFile(identity, parkId, fileId) {
 			await requireParkRole(db, parkId, await requireOrgUser(db, identity, env, deps));
@@ -32697,6 +32727,10 @@ async function audit(db, deps, parkId, userId, exportId, result, summary) {
 }
 function createExportService({ db, files, env, deps }) {
 	return {
+		async list(identity, parkId) {
+			await requireParkRole(db, parkId, await requireOrgUser(db, identity, env, deps));
+			return (await db.prepare("SELECT * FROM exports WHERE park_id = ? ORDER BY generated_at DESC, rowid DESC").bind(parkId).all()).results.map(exportShape);
+		},
 		async generate(identity, parkId, body) {
 			const user = await requireOrgUser(db, identity, env, deps);
 			await requireParkRole(db, parkId, user, WRITE_ROLES);
@@ -32840,10 +32874,20 @@ function createWorkspaceRouter(deps = {}) {
 				if (request.method === "POST" && !taskId) return workspaceJson({ task: await taskFiles.createTask(identity, parkId, await readWorkspaceJson(request)) }, 201);
 				if (request.method === "PATCH" && taskId) return workspaceJson({ task: await taskFiles.updateTask(identity, parkId, taskId, await readWorkspaceJson(request)) });
 			}
+			const taskActivityMatch = url.pathname.match(/^\/api\/workspace\/parks\/([^/]+)\/tasks\/([^/]+)\/activity$/);
+			if (taskActivityMatch && request.method === "GET") {
+				const parkId = decodeURIComponent(taskActivityMatch[1]);
+				const taskId = decodeURIComponent(taskActivityMatch[2]);
+				return workspaceJson({ activity: await taskFiles.listTaskActivity(identity, parkId, taskId) });
+			}
 			const fileMatch = url.pathname.match(/^\/api\/workspace\/parks\/([^/]+)\/files(?:\/([^/]+))?$/);
 			if (fileMatch) {
 				const parkId = decodeURIComponent(fileMatch[1]);
 				const fileId = fileMatch[2] ? decodeURIComponent(fileMatch[2]) : null;
+				if (request.method === "GET" && !fileId) return workspaceJson({ files: await taskFiles.listFiles(identity, parkId, {
+					ownerType: url.searchParams.get("ownerType"),
+					ownerId: url.searchParams.get("ownerId")
+				}) });
 				if (request.method === "POST" && !fileId) return workspaceJson({ file: await taskFiles.uploadFile(identity, parkId, request) }, 201);
 				if (request.method === "GET" && fileId) return taskFiles.downloadFile(identity, parkId, fileId);
 			}
@@ -32851,6 +32895,7 @@ function createWorkspaceRouter(deps = {}) {
 			if (exportMatch) {
 				const parkId = decodeURIComponent(exportMatch[1]);
 				const exportId = exportMatch[2] ? decodeURIComponent(exportMatch[2]) : null;
+				if (request.method === "GET" && !exportId) return workspaceJson({ exports: await exports.list(identity, parkId) });
 				if (request.method === "POST" && !exportId) {
 					const generated = await exports.generate(identity, parkId, await readWorkspaceJson(request));
 					return generated.exported ? workspaceJson({

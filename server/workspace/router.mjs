@@ -71,10 +71,20 @@ export function createWorkspaceRouter(deps = {}) {
           if (request.method === 'PATCH' && taskId) return workspaceJson({ task: await taskFiles.updateTask(identity, parkId, taskId, await readWorkspaceJson(request)) })
         }
 
+        const taskActivityMatch = url.pathname.match(/^\/api\/workspace\/parks\/([^/]+)\/tasks\/([^/]+)\/activity$/)
+        if (taskActivityMatch && request.method === 'GET') {
+          const parkId = decodeURIComponent(taskActivityMatch[1])
+          const taskId = decodeURIComponent(taskActivityMatch[2])
+          return workspaceJson({ activity: await taskFiles.listTaskActivity(identity, parkId, taskId) })
+        }
+
         const fileMatch = url.pathname.match(/^\/api\/workspace\/parks\/([^/]+)\/files(?:\/([^/]+))?$/)
         if (fileMatch) {
           const parkId = decodeURIComponent(fileMatch[1])
           const fileId = fileMatch[2] ? decodeURIComponent(fileMatch[2]) : null
+          if (request.method === 'GET' && !fileId) return workspaceJson({ files: await taskFiles.listFiles(identity, parkId, {
+            ownerType: url.searchParams.get('ownerType'), ownerId: url.searchParams.get('ownerId'),
+          }) })
           if (request.method === 'POST' && !fileId) return workspaceJson({ file: await taskFiles.uploadFile(identity, parkId, request) }, 201)
           if (request.method === 'GET' && fileId) return taskFiles.downloadFile(identity, parkId, fileId)
         }
@@ -83,6 +93,7 @@ export function createWorkspaceRouter(deps = {}) {
         if (exportMatch) {
           const parkId = decodeURIComponent(exportMatch[1])
           const exportId = exportMatch[2] ? decodeURIComponent(exportMatch[2]) : null
+          if (request.method === 'GET' && !exportId) return workspaceJson({ exports: await exports.list(identity, parkId) })
           if (request.method === 'POST' && !exportId) {
             const generated = await exports.generate(identity, parkId, await readWorkspaceJson(request))
             return generated.exported

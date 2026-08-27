@@ -150,12 +150,18 @@ export function createParkService({ db, env, deps }) {
       const actor = await requireOrgUser(db, identity, env, deps)
       await requireParkRole(db, parkId, actor, ['admin'])
       if (!PARK_ROLES.includes(body.role)) throw new WorkspaceError('VALIDATION_FAILED', '提交内容不符合要求。', 422, { role: '请选择有效项目角色。' })
-      const result = await db.prepare('UPDATE park_members SET role = ?, updated_at = ? WHERE id = ? AND park_id = ?')
-        .bind(body.role, deps.now(), memberId, parkId).run()
-      if (!result.meta.changes) throw new WorkspaceError('MEMBER_NOT_FOUND', '未找到该成员。', 404)
+      const result = await db.prepare(`UPDATE park_members SET role = ?, updated_at = ?
+        WHERE id = ? AND park_id = ?
+          AND NOT (role = 'admin' AND ? <> 'admin' AND
+            (SELECT COUNT(*) FROM park_members WHERE park_id = ? AND role = 'admin' AND member_status = 'active') <= 1)`)
+        .bind(body.role, deps.now(), memberId, parkId, body.role, parkId).run()
+      if (!result.meta.changes) {
+        const member = await db.prepare('SELECT role FROM park_members WHERE id = ? AND park_id = ?').bind(memberId, parkId).first()
+        if (!member) throw new WorkspaceError('MEMBER_NOT_FOUND', '未找到该成员。', 404)
+        if (member.role === 'admin' && body.role !== 'admin') throw new WorkspaceError('LAST_ADMIN_REQUIRED', '项目至少需要保留一名管理员。', 422)
+      }
       await audit(db, deps, { parkId, userId: actor.id, action: 'member.update', objectType: 'park_member', objectId: memberId })
       return this.listMembers(identity, parkId).then((members) => members.find((member) => member.id === memberId))
     },
   }
 }
-

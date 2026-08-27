@@ -33,7 +33,7 @@ onMounted(() => { if (!state.initialized.value) void state.bootstrap() })
     <template v-else-if="state.auth.value">
       <WorkspaceTopbar />
       <nav class="workspace-nav" aria-label="项目工作台导航">
-        <RouterLink to="/workspace">项目总览</RouterLink><RouterLink to="/workspace/onboarding">园区建档</RouterLink><RouterLink to="/workspace/imports">数据导入</RouterLink><RouterLink to="/workspace/diagnosis">指标诊断</RouterLink><RouterLink to="/workspace/tasks">任务与佐证</RouterLink><RouterLink to="/workspace/deliverables">成果交付</RouterLink>
+        <RouterLink to="/workspace">项目总览</RouterLink><RouterLink to="/workspace/onboarding">园区建档</RouterLink><RouterLink to="/workspace/imports">数据导入</RouterLink><RouterLink to="/workspace/diagnosis">指标诊断</RouterLink><RouterLink to="/workspace/readiness">申报准备度</RouterLink><RouterLink to="/workspace/tasks">任务与佐证</RouterLink><RouterLink to="/workspace/deliverables">成果交付</RouterLink><RouterLink to="/workspace/members">项目成员</RouterLink>
       </nav>
       <div v-if="!state.parks.value.length && !isOnboarding" class="workspace-empty">
         <div><span>EMPTY BASELINE</span><h1>先建立第一个园区项目</h1><p>建档只创建空基线，不会复制示范园区的任何数字。</p></div>

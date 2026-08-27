@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import DeliverablePreview from '@/components/workspace/DeliverablePreview.vue'
 import { workspaceApi } from '@/services/workspaceApi'
 import { useWorkspaceState } from '@/stores/workspace'
@@ -15,9 +15,17 @@ const items: { type: ExportType; title: string; format: string; detail: string }
 const selected = ref<ExportType | null>(null)
 const preview = ref<ExportPreview | null>(null)
 const exported = ref<WorkspaceExport | null>(null)
+const history = ref<WorkspaceExport[]>([])
 const busy = ref(false)
 const message = ref('')
 const canWrite = computed(() => state.selectedPark.value?.role !== 'viewer')
+const titles: Record<ExportType, string> = { diagnosis_report: '园区指标诊断报告', task_register: '建设与申报任务表', project_investment: '项目投资清单', evidence_catalog: '申报佐证材料目录' }
+
+async function loadHistory() {
+  if (!state.selectedParkId.value) return
+  try { history.value = await workspaceApi.listExports(state.selectedParkId.value) }
+  catch (error) { message.value = (error as Error).message }
+}
 
 async function previewItem(type: ExportType) {
   if (!state.selectedParkId.value) return
@@ -31,6 +39,7 @@ async function confirm() {
   try {
     const result = await workspaceApi.confirmExport(state.selectedParkId.value, selected.value)
     exported.value = result.export
+    history.value = [result.export, ...history.value.filter(item => item.id !== result.export.id)]
     message.value = selected.value === 'diagnosis_report' ? '诊断报告快照已生成，可打印或另存为 PDF。' : '成果文件已生成，可下载。'
   } catch (error) { message.value = (error as Error).message } finally { busy.value = false }
 }
@@ -46,6 +55,15 @@ async function downloadFile() {
     setTimeout(() => URL.revokeObjectURL(url), 0)
   } catch (error) { message.value = (error as Error).message } finally { busy.value = false }
 }
+async function downloadHistory(item: WorkspaceExport) {
+  if (!state.selectedParkId.value || !item.downloadAvailable) return
+  busy.value = true; message.value = ''
+  try { const file = await workspaceApi.downloadExport(state.selectedParkId.value, item.id); const url = URL.createObjectURL(file.blob); const link = document.createElement('a'); link.href = url; link.download = file.filename; link.click(); setTimeout(() => URL.revokeObjectURL(url), 0) }
+  catch (error) { message.value = (error as Error).message }
+  finally { busy.value = false }
+}
+watch(() => state.selectedParkId.value, loadHistory)
+onMounted(loadHistory)
 </script>
 
 <template>
@@ -53,9 +71,10 @@ async function downloadFile() {
     <section class="deliverable-grid"><article v-for="item in items" :key="item.type" data-testid="deliverable-card" :class="{ active: selected === item.type }"><header><span>{{ item.format }}</span><b>{{ item.type.split('_').map(part => part[0]).join('').toUpperCase() }}</b></header><h2>{{ item.title }}</h2><p>{{ item.detail }}</p><button @click="previewItem(item.type)" :disabled="busy">预览数据快照</button></article></section>
     <p v-if="message" class="message" aria-live="polite">{{ message }}</p>
     <section v-if="preview" class="confirm-panel"><DeliverablePreview :preview="preview" /><div class="confirm-actions"><span>{{ canWrite ? '预览无误后生成正式成果' : '当前为只读预览' }}</span><button v-if="canWrite && !exported" data-testid="confirm-export" @click="confirm" :disabled="busy">确认生成</button><button v-else-if="exported && selected === 'diagnosis_report'" @click="printReport">打印 / 另存为 PDF</button><button v-else-if="exported && state.selectedParkId.value" :data-download-url="workspaceApi.exportDownloadUrl(state.selectedParkId.value, exported.id)" @click="downloadFile" :disabled="busy">下载 XLSX</button></div></section>
+    <section class="history-panel"><header><div><p>DELIVERY LEDGER</p><h2>历史成果</h2></div><span>{{ history.length }} 份快照</span></header><div class="history-list"><article v-for="item in history" :key="item.id"><div><strong>{{ titles[item.type] }}</strong><span>{{ item.generatedAt.replace('T', ' ').slice(0, 16) }} · {{ item.summary }}</span></div><button v-if="item.downloadAvailable" data-testid="history-download" :disabled="busy" @click="downloadHistory(item)">下载文件</button><b v-else>打印快照</b></article><p v-if="!history.length" class="history-empty">生成正式成果后，会在这里保留可追溯的历史快照。</p></div></section>
   </div>
 </template>
 
 <style scoped>
-.workspace-page{display:grid;gap:12px}.page-title{padding:12px 2px 14px;border-bottom:1px dashed rgba(0,229,255,.2)}.page-title p{margin:0 0 4px;color:var(--energy-cyan);font:11px var(--font-data);letter-spacing:1.8px}.page-title h1{margin:0;color:var(--heading-white);font-size:clamp(24px,2.2vw,32px)}.page-title span{display:block;margin-top:6px;color:#83a9c2}.deliverable-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.deliverable-grid article{min-height:166px;display:flex;flex-direction:column;padding:15px;border:1px solid rgba(0,229,255,.16);background:linear-gradient(145deg,rgba(12,40,80,.75),rgba(6,22,48,.87))}.deliverable-grid article.active{border-color:var(--energy-cyan);box-shadow:inset 2px 0 var(--energy-cyan)}article header{display:flex;justify-content:space-between}article header span{color:var(--market-purple);font:11px var(--font-data)}article header b{color:#476f8b;font:10px var(--font-data)}article h2{margin:11px 0 4px;color:var(--heading-white);font-size:18px}article p{margin:0;color:#769db6;font-size:13px}article button{align-self:flex-start;margin-top:auto;padding:7px 10px;border:1px solid rgba(0,229,255,.38);color:var(--energy-cyan);background:rgba(0,229,255,.06);cursor:pointer}.message{margin:0;padding:9px 12px;border-left:2px solid var(--success-green);color:#9be3bf;background:rgba(28,206,143,.06)}.confirm-panel{display:grid;gap:8px}.confirm-actions{display:flex;align-items:center;justify-content:flex-end;gap:14px}.confirm-actions span{margin-right:auto;color:#6f97b2;font-size:12px}.confirm-actions button,.confirm-actions a{min-height:38px;display:inline-flex;align-items:center;padding:0 15px;border:1px solid var(--energy-cyan);color:#031322;background:var(--energy-cyan);font-weight:800;text-decoration:none}@media(max-width:680px){.deliverable-grid{grid-template-columns:1fr}.confirm-actions{align-items:stretch;flex-direction:column}.confirm-actions span{margin:0}.confirm-actions button,.confirm-actions a{justify-content:center}}@media print{.deliverable-grid,.message,.confirm-actions,.page-title p{display:none}.confirm-panel{display:block}}
+.workspace-page{display:grid;gap:12px}.page-title{padding:12px 2px 14px;border-bottom:1px dashed rgba(0,229,255,.2)}.page-title p{margin:0 0 4px;color:var(--energy-cyan);font:11px var(--font-data);letter-spacing:1.8px}.page-title h1{margin:0;color:var(--heading-white);font-size:clamp(24px,2.2vw,32px)}.page-title span{display:block;margin-top:6px;color:#83a9c2}.deliverable-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.deliverable-grid article{min-height:166px;display:flex;flex-direction:column;padding:15px;border:1px solid rgba(0,229,255,.16);background:linear-gradient(145deg,rgba(12,40,80,.75),rgba(6,22,48,.87))}.deliverable-grid article.active{border-color:var(--energy-cyan);box-shadow:inset 2px 0 var(--energy-cyan)}article header{display:flex;justify-content:space-between}article header span{color:var(--market-purple);font:11px var(--font-data)}article header b{color:#476f8b;font:10px var(--font-data)}article h2{margin:11px 0 4px;color:var(--heading-white);font-size:18px}article p{margin:0;color:#769db6;font-size:13px}article button{align-self:flex-start;margin-top:auto;padding:7px 10px;border:1px solid rgba(0,229,255,.38);color:var(--energy-cyan);background:rgba(0,229,255,.06);cursor:pointer}.message{margin:0;padding:9px 12px;border-left:2px solid var(--success-green);color:#9be3bf;background:rgba(28,206,143,.06)}.confirm-panel{display:grid;gap:8px}.confirm-actions{display:flex;align-items:center;justify-content:flex-end;gap:14px}.confirm-actions span{margin-right:auto;color:#6f97b2;font-size:12px}.confirm-actions button,.confirm-actions a{min-height:38px;display:inline-flex;align-items:center;padding:0 15px;border:1px solid var(--energy-cyan);color:#031322;background:var(--energy-cyan);font-weight:800;text-decoration:none}.history-panel{display:grid;gap:8px;margin-top:2px}.history-panel>header{display:flex;align-items:end;justify-content:space-between;padding:12px 2px 8px;border-bottom:1px dashed rgba(0,229,255,.16)}.history-panel header p{margin:0;color:var(--market-purple);font:10px var(--font-data);letter-spacing:1.5px}.history-panel h2{margin:3px 0 0;color:var(--heading-white);font-size:18px}.history-panel>header>span{color:#6e98b2;font:11px var(--font-data)}.history-list{display:grid;gap:6px}.history-list article{min-height:58px;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 13px;border:1px solid rgba(0,229,255,.13);background:rgba(7,27,57,.58)}.history-list article>div{display:grid;gap:3px}.history-list strong{color:#dceef7;font-size:13px}.history-list span{color:#6e97b1;font:10px var(--font-data)}.history-list button{margin:0}.history-list b{color:#769db7;font-size:11px}.history-empty{margin:0;padding:18px;border:1px dashed rgba(0,229,255,.16);color:#729ab4;text-align:center}@media(max-width:680px){.deliverable-grid{grid-template-columns:1fr}.confirm-actions{align-items:stretch;flex-direction:column}.confirm-actions span{margin:0}.confirm-actions button,.confirm-actions a{justify-content:center}.history-list article{align-items:flex-start;flex-direction:column}}@media print{.deliverable-grid,.message,.confirm-actions,.page-title p,.history-panel{display:none}.confirm-panel{display:block}}
 </style>

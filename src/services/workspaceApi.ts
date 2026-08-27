@@ -1,4 +1,4 @@
-import type { DiagnosisRun, ExportPreview, ExportType, ImportBatch, ImportKind, ParkProject, WorkspaceExport, WorkspaceTask } from '@/types/workspace'
+import type { DiagnosisRun, ExportPreview, ExportType, ImportBatch, ImportKind, ParkProject, ParkRole, TaskActivity, TaskEvidenceFile, WorkspaceExport, WorkspaceMember, WorkspaceTask } from '@/types/workspace'
 
 export interface WorkspaceUser {
   id: string
@@ -44,6 +44,19 @@ export const workspaceApi = {
       method: 'POST', body: JSON.stringify(input),
     })).park
   },
+  async listMembers(parkId: string) {
+    return (await request<{ members: WorkspaceMember[] }>(`/api/workspace/parks/${encodeURIComponent(parkId)}/members`)).members
+  },
+  async inviteMember(parkId: string, input: { email: string; role: ParkRole }) {
+    return (await request<{ member: WorkspaceMember }>(`/api/workspace/parks/${encodeURIComponent(parkId)}/members`, {
+      method: 'POST', body: JSON.stringify(input),
+    })).member
+  },
+  async updateMember(parkId: string, memberId: string, input: { role: ParkRole }) {
+    return (await request<{ member: WorkspaceMember }>(`/api/workspace/parks/${encodeURIComponent(parkId)}/members/${encodeURIComponent(memberId)}`, {
+      method: 'PATCH', body: JSON.stringify(input),
+    })).member
+  },
   async listImports(parkId: string) {
     return (await request<{ imports: ImportBatch[] }>(`/api/workspace/parks/${encodeURIComponent(parkId)}/imports`)).imports
   },
@@ -76,8 +89,28 @@ export const workspaceApi = {
     form.set('file', file)
     return (await request<{ file: { id: string; filename: string } }>(`/api/workspace/parks/${encodeURIComponent(parkId)}/files`, { method: 'POST', body: form })).file
   },
+  async listTaskFiles(parkId: string, taskId: string) {
+    const query = new URLSearchParams({ ownerType: 'task', ownerId: taskId })
+    return (await request<{ files: TaskEvidenceFile[] }>(`/api/workspace/parks/${encodeURIComponent(parkId)}/files?${query}`)).files
+  },
+  async listTaskActivity(parkId: string, taskId: string) {
+    return (await request<{ activity: TaskActivity[] }>(`/api/workspace/parks/${encodeURIComponent(parkId)}/tasks/${encodeURIComponent(taskId)}/activity`)).activity
+  },
+  async downloadEvidence(parkId: string, fileId: string) {
+    const response = await fetch(`/api/workspace/parks/${encodeURIComponent(parkId)}/files/${encodeURIComponent(fileId)}`)
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}))
+      throw new WorkspaceApiError(response.status, body)
+    }
+    const disposition = response.headers.get('content-disposition') || ''
+    const encoded = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1]
+    return { blob: await response.blob(), filename: encoded ? decodeURIComponent(encoded) : '园区佐证材料' }
+  },
   async previewExport(parkId: string, type: ExportType) {
     return (await request<{ preview: ExportPreview }>(`/api/workspace/parks/${encodeURIComponent(parkId)}/exports`, { method: 'POST', body: JSON.stringify({ type, confirmed: false }) })).preview
+  },
+  async listExports(parkId: string) {
+    return (await request<{ exports: WorkspaceExport[] }>(`/api/workspace/parks/${encodeURIComponent(parkId)}/exports`)).exports
   },
   async confirmExport(parkId: string, type: ExportType) {
     return await request<{ preview: ExportPreview; export: WorkspaceExport }>(`/api/workspace/parks/${encodeURIComponent(parkId)}/exports`, { method: 'POST', body: JSON.stringify({ type, confirmed: true }) })

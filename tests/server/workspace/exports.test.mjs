@@ -132,3 +132,22 @@ test('R2 failure does not leave a successful export row', async () => {
   assert.equal(env.FILES.keys().length, 0)
 })
 
+test('member lists persisted export history newest first and only for the selected park', async () => {
+  const { call } = app()
+  const first = await createPark(call, '甲园区')
+  const second = await createPark(call, '乙园区')
+  await seedTaskAndDiagnosis(call, first.id)
+  await call(`/api/workspace/parks/${first.id}/exports`, {
+    method: 'POST', user: owner, body: { type: 'diagnosis_report', confirmed: true },
+  })
+  await call(`/api/workspace/parks/${first.id}/exports`, {
+    method: 'POST', user: owner, body: { type: 'task_register', confirmed: true },
+  })
+
+  const listed = await call(`/api/workspace/parks/${first.id}/exports`, { user: owner })
+  const other = await call(`/api/workspace/parks/${second.id}/exports`, { user: owner })
+
+  assert.equal(listed.status, 200)
+  assert.deepEqual((await listed.json()).exports.map((item) => item.type), ['task_register', 'diagnosis_report'])
+  assert.deepEqual((await other.json()).exports, [])
+})

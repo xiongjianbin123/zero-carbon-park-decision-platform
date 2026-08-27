@@ -148,6 +148,14 @@ async function audit(db, deps, parkId, userId, exportId, result, summary) {
 
 export function createExportService({ db, files, env, deps }) {
   return {
+    async list(identity, parkId) {
+      const user = await requireOrgUser(db, identity, env, deps)
+      await requireParkRole(db, parkId, user)
+      const result = await db.prepare('SELECT * FROM exports WHERE park_id = ? ORDER BY generated_at DESC, rowid DESC')
+        .bind(parkId).all()
+      return result.results.map(exportShape)
+    },
+
     async generate(identity, parkId, body) {
       const user = await requireOrgUser(db, identity, env, deps)
       await requireParkRole(db, parkId, user, WRITE_ROLES)
@@ -208,4 +216,3 @@ export function createExportService({ db, files, env, deps }) {
     },
   }
 }
-

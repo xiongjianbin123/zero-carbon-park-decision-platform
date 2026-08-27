@@ -136,3 +136,19 @@ test('explicit loopback test identity overrides local Sites demo identity withou
   assert.equal((await localResponse.json()).user.email, 'e2e@example.test')
   assert.equal((await handler(publicRequest, env)).status, 401)
 })
+
+test('the final project administrator cannot remove the last administrator role', async () => {
+  const { call } = testApp()
+  const created = await body(await call('/api/workspace/parks', { method: 'POST', user: owner, body: parkInput('唯一管理员园区') }))
+  const listed = await body(await call(`/api/workspace/parks/${created.park.id}/members`, { user: owner }))
+  const ownerMember = listed.members.find((member) => member.email === owner.email)
+
+  const response = await call(`/api/workspace/parks/${created.park.id}/members/${ownerMember.id}`, {
+    method: 'PATCH', user: owner, body: { role: 'viewer' },
+  })
+  const after = await body(await call(`/api/workspace/parks/${created.park.id}/members`, { user: owner }))
+
+  assert.equal(response.status, 422)
+  assert.equal((await body(response)).code, 'LAST_ADMIN_REQUIRED')
+  assert.equal(after.members.find((member) => member.id === ownerMember.id).role, 'admin')
+})

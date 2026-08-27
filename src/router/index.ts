@@ -13,6 +13,8 @@ import WorkspaceImportsPage from '@/pages/workspace/WorkspaceImportsPage.vue'
 import WorkspaceDiagnosisPage from '@/pages/workspace/WorkspaceDiagnosisPage.vue'
 import WorkspaceTasksPage from '@/pages/workspace/WorkspaceTasksPage.vue'
 import WorkspaceDeliverablesPage from '@/pages/workspace/WorkspaceDeliverablesPage.vue'
+import WorkspaceMembersPage from '@/pages/workspace/WorkspaceMembersPage.vue'
+import WorkspaceReadinessPage from '@/pages/workspace/WorkspaceReadinessPage.vue'
 
 export const router = createRouter({
   history: createWebHashHistory(),
@@ -34,8 +36,10 @@ export const router = createRouter({
         { path: 'onboarding', name: 'workspace-onboarding', component: WorkspaceOnboardingPage },
         { path: 'imports', name: 'workspace-imports', component: WorkspaceImportsPage },
         { path: 'diagnosis', name: 'workspace-diagnosis', component: WorkspaceDiagnosisPage },
+        { path: 'readiness', name: 'workspace-readiness', component: WorkspaceReadinessPage },
         { path: 'tasks', name: 'workspace-tasks', component: WorkspaceTasksPage },
         { path: 'deliverables', name: 'workspace-deliverables', component: WorkspaceDeliverablesPage },
+        { path: 'members', name: 'workspace-members', component: WorkspaceMembersPage },
       ],
     },
     { path: '/:pathMatch(.*)*', redirect: '/dashboard' },

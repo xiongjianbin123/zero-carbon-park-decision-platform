@@ -154,3 +154,27 @@ test('task status audit records before and after values without trusting body id
   assert.match(audit.summary, /"after":"blocked"/)
   assert.notEqual(audit.user_id, 'spoofed')
 })
+
+test('member can list one task evidence and activity without exposing another park', async () => {
+  const { env, handler, call } = app()
+  const first = await createPark(call, '甲园区')
+  const second = await createPark(call, '乙园区')
+  const task = (await createTask(call, first.id)).payload.task
+  const upload = await handler(evidenceRequest(first.id, task.id), env)
+  const file = (await upload.json()).file
+  await call(`/api/workspace/parks/${first.id}/tasks/${task.id}`, {
+    method: 'PATCH', user: owner, body: { status: 'in_progress', reviewNote: '已完成第一轮核对。' },
+  })
+
+  const files = await call(`/api/workspace/parks/${first.id}/files?ownerType=task&ownerId=${task.id}`, { user: owner })
+  const activity = await call(`/api/workspace/parks/${first.id}/tasks/${task.id}/activity`, { user: owner })
+  const crossParkFiles = await call(`/api/workspace/parks/${second.id}/files?ownerType=task&ownerId=${task.id}`, { user: owner })
+  const crossParkActivity = await call(`/api/workspace/parks/${second.id}/tasks/${task.id}/activity`, { user: owner })
+
+  assert.equal(files.status, 200)
+  assert.deepEqual((await files.json()).files.map((item) => item.id), [file.id])
+  assert.equal(activity.status, 200)
+  assert.deepEqual((await activity.json()).activity.map((item) => item.action), ['task.update', 'file.upload', 'task.create'])
+  assert.equal(crossParkFiles.status, 404)
+  assert.equal(crossParkActivity.status, 404)
+})
