@@ -8,6 +8,7 @@
     "api": "node server/index.mjs",
     "api:dev": "PORT=4175 node server/index.mjs",
     "build": "node scripts/clean-dist.mjs && vue-tsc --noEmit && vite build && node scripts/sanitize-sites-build.mjs",
+    "build:pages": "npm run build",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
     "test": "vitest",
